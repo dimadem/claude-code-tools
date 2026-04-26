@@ -18,23 +18,49 @@ function gradientColor(pct: number): string {
 }
 
 function formatTokens(n: number): string {
-  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 }
 
 // ── Parse ─────────────────────────────────────────────────────────────────────
 
-const modelName: string = data.model?.display_name ?? "?";
+const modelName = data.model?.display_name ?? "?";
 
-const ctxPct: number = Math.floor(data.context_window?.used_percentage ?? 0);
+const ctxPct = Math.floor(data.context_window?.used_percentage ?? 0);
 
 const usage = data.context_window?.current_usage;
-const ctxTokens: number =
+const ctxTokens =
   (usage?.input_tokens ?? 0) +
   (usage?.cache_creation_input_tokens ?? 0) +
   (usage?.cache_read_input_tokens ?? 0);
 
-const rl5: number = Math.round(data.rate_limits?.five_hour?.used_percentage ?? 0);
-const rl7: number = Math.round(data.rate_limits?.seven_day?.used_percentage ?? 0);
+const rl5 = Math.round(data.rate_limits?.five_hour?.used_percentage ?? 0);
+const rl7 = Math.round(data.rate_limits?.seven_day?.used_percentage ?? 0);
+const reset5: number | undefined = data.rate_limits?.five_hour?.resets_at;
+const reset7: number | undefined = data.rate_limits?.seven_day?.resets_at;
+
+function formatResetTime(secondsUntil: number): string {
+  if (secondsUntil < 60) return "<1m";
+  const totalMinutes = Math.floor(secondsUntil / 60);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
+function formatWindow(
+  label: string,
+  pct: number,
+  resetsAt: number | undefined,
+  emptyPlaceholder: string,
+): string {
+  if (resetsAt == null) {
+    return `${DIM}⌜${label}⌟ ${pct}% ⋯ ${emptyPlaceholder}${RESET}`;
+  }
+  const delta = Math.max(0, resetsAt - Math.floor(Date.now() / 1000));
+  return `⌜${label}⌟ ${gradientColor(pct)}${pct}%${RESET} ${DIM}⋯ ${formatResetTime(delta)}${RESET}`;
+}
 
 // ── Context bar ───────────────────────────────────────────────────────────────
 
@@ -43,23 +69,27 @@ const filled = Math.floor((ctxPct * BAR_WIDTH) / 100);
 
 let bar = "";
 for (let i = 0; i < filled; i++) {
-  const pos = BAR_WIDTH > 1 ? (i * 100) / (BAR_WIDTH - 1) : 0;
+  const pos = (i * 100) / (BAR_WIDTH - 1);
   bar += gradientColor(pos) + "█";
 }
 bar += RESET;
 bar += "░".repeat(BAR_WIDTH - filled);
 
-const tokenColor = usage === null ? DIM : gradientColor(ctxPct);
+let tokenColor: string;
+if (usage == null) {
+  tokenColor = DIM;
+} else {
+  tokenColor = gradientColor(ctxPct);
+}
 const tokenLabel = ` ${tokenColor}${formatTokens(ctxTokens)}${RESET}`;
 const ctxBlock = ` | [${bar}]${tokenLabel}`;
 
 // ── Rate limits ───────────────────────────────────────────────────────────────
 
-const hasRateLimits = data.rate_limits != null;
-const rate = hasRateLimits
-  ? `5h: ${rl5}% | 7d: ${rl7}%`
-  : `${DIM}5h: ${rl5}% | 7d: ${rl7}%${RESET}`;
+const rate = `${formatWindow("5h", rl5, reset5, "—h —m")} | ${formatWindow("7d", rl7, reset7, "—d —h")}`;
 
 // ── Output ────────────────────────────────────────────────────────────────────
 
 process.stdout.write(`${TERRACOTTA}${modelName}${RESET}${ctxBlock} | ${rate}`);
+
+export {};
