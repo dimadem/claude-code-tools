@@ -3,20 +3,35 @@
     "SessionStart": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts"
-          }
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts"
-          }
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "UserPromptExpansion": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
         ]
       }
     ],
@@ -24,10 +39,7 @@
       {
         "matcher": ".*",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts"
-          }
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
         ]
       }
     ],
@@ -35,30 +47,99 @@
       {
         "matcher": ".*",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts"
-          }
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "PostToolBatch": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "TaskCreated": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts"
-          }
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
         ]
       }
     ],
-    "SessionEnd": [
+    "StopFailure": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts"
-          }
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bun ${CLAUDE_PLUGIN_ROOT}/scripts/trace.ts" }
         ]
       }
     ]

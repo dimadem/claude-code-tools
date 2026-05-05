@@ -1,4 +1,10 @@
 {
+  "name": "dimadem-claude-code-tools",
+  "description": "Personal Claude Code plugin marketplace",
+  "owner": {
+    "name": "Dima Dem",
+    "email": "iamdimadem@gmail.com"
+  },
   "plugins": [
     {
       "name": "network",
