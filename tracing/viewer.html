@@ -1,359 +1,843 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Trace Viewer</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <head>
+    <meta charset="UTF-8" />
+    <title>Trace Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-  body {
-    font-family: ui-monospace, monospace;
-    font-size: 13px;
-    background: #0f0f0f;
-    color: #d4d4d4;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+      body {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 13px;
+        background: #0d0d0d;
+        color: #c8c8c8;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
 
-  #toolbar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 16px;
-    background: #1a1a1a;
-    border-bottom: 1px solid #2a2a2a;
-    flex-shrink: 0;
-  }
+      /* ── Toolbar ─────────────────────────────────────────────── */
+      #toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 7px 14px;
+        background: #111;
+        border-bottom: 1px solid #1e1e1e;
+        flex-shrink: 0;
+      }
 
-  /* Shared between button and select */
-  :is(button, select) { color: #d4d4d4; border: 1px solid #3a3a3a; font-family: inherit; font-size: 12px; }
-  button { background: #2a2a2a; padding: 5px 12px; cursor: pointer; &:hover { background: #333; } }
-  select { background: #1a1a1a; padding: 5px 8px; max-width: 500px; }
+      #btn-open {
+        background: #192a3e;
+        color: #5fa8d3;
+        border: 1px solid #1e3d5a;
+        font-family: inherit;
+        font-size: 11px;
+        padding: 4px 12px;
+        cursor: pointer;
+        letter-spacing: 0.04em;
+        transition:
+          background 0.12s,
+          border-color 0.12s;
+        &:hover {
+          background: #1e3550;
+          border-color: #2a5580;
+        }
+      }
 
-  #status   { color: #555; font-size: 12px; }
-  #table-wrap { flex: 1; overflow: auto; }
-  table     { width: 100%; border-collapse: collapse; }
+      #status {
+        color: #555;
+        font-size: 11px;
+        margin-left: 2px;
+      }
 
-  thead th {
-    position: sticky; top: 0;
-    background: #161616;
-    border-bottom: 1px solid #2a2a2a;
-    padding: 7px 12px;
-    text-align: left; color: #666; font-weight: normal; white-space: nowrap;
-  }
+      /* ── Tab Rail ────────────────────────────────────────────── */
+      #tab-rail {
+        display: flex;
+        align-items: stretch;
+        background: #0f0f0f;
+        border-bottom: 1px solid #1e1e1e;
+        flex-shrink: 0;
+        height: 40px;
+        overflow: hidden;
+      }
 
-  tbody {
-    & tr {
-      border-bottom: 1px solid #1a1a1a;
-      content-visibility: auto;
-      contain-intrinsic-size: auto 50px;
-      &:hover { background: #141414; }
-    }
-    & td { padding: 7px 12px; vertical-align: top; }
-  }
+      .rail-arrow {
+        width: 26px;
+        background: #0f0f0f;
+        border: none;
+        border-right: 1px solid #1a1a1a;
+        color: #2a2a2a;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          color 0.12s,
+          background 0.12s;
+        padding-bottom: 1px;
+        &:hover {
+          color: #666;
+          background: #141414;
+        }
+        &:last-child {
+          border-right: none;
+          border-left: 1px solid #1a1a1a;
+        }
+        &:disabled {
+          opacity: 0.2;
+          cursor: default;
+          pointer-events: none;
+        }
+      }
 
-  .time { color: #555; white-space: nowrap; font-size: 11px; padding-top: 9px; }
+      #tab-strip {
+        display: flex;
+        align-items: stretch;
+        overflow-x: auto;
+        flex: 1;
+        scrollbar-width: none;
+        scroll-behavior: smooth;
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
 
-  .badge {
-    display: inline-block; padding: 2px 7px;
-    font-size: 11px; white-space: nowrap; font-weight: 600; letter-spacing: 0.03em;
-    &.b-user      { background: #0d2a45; color: #5fa8d3; }
-    &.b-assistant { background: #1a2a1a; color: #6dba6d; }
-    &.b-tool      { background: #2a2000; color: #d4a030; }
-    &.b-result    { background: #1a1a2a; color: #8080c0; }
-  }
+      /* Date separator */
+      .tab-date {
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        flex-shrink: 0;
+        border-right: 1px solid #252525;
+        position: relative;
+        background: #141414;
+        border-left: 2px solid #3b82f6;
+      }
 
-  .cell        { line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-  .cell-user   { color: #a8d0f0; }
-  .cell-assist { color: #c8c8c8; }
-  .tool-name   { color: #d4a030; font-weight: 600; }
+      .tab-date-label {
+        font-size: 12px;
+        color: #e0e0e0;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        font-weight: 600;
+      }
 
-  .json-block {
-    margin-top: 4px; overflow-x: auto;
-    & pre  { margin: 0; }
-    & code { font-family: inherit; font-size: 12px; }
-  }
+      /* Individual tab */
+      .tab {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 13px;
+        border-right: 1px solid #171717;
+        cursor: pointer;
+        flex-shrink: 0;
+        position: relative;
+        background: transparent;
+        min-width: 108px;
+        max-width: 160px;
+        transition: background 0.1s;
+        user-select: none;
 
-  .text-block { background: #141414; border: 1px solid #222; padding: 8px 12px; margin-top: 4px; color: #9090b8; }
+        &:hover {
+          background: #141414;
+        }
+        &:focus-visible {
+          outline: none;
+          background: #141414;
+          &::after {
+            background: #2a5580;
+          }
+        }
 
-  details > summary {
-    cursor: pointer; list-style: none; user-select: none; padding: 2px 0; color: #555;
-    &::-webkit-details-marker { display: none; }
-    &::before { content: '▾'; display: inline-block; width: 14px; transition: transform 0.15s; }
-  }
-  details:not([open]) > summary::before { transform: rotate(-90deg); }
+        &::after {
+          content: "";
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: transparent;
+          transition: background 0.15s;
+        }
 
-  #placeholder { display: grid; place-items: center; height: 100%; color: #333; font-size: 14px; }
-  .hidden      { display: none !important; }
+        &.active {
+          background: #0d0d0d;
+          &::after {
+            background: #3b82f6;
+          }
+          & .tab-time {
+            color: #5fa8d3;
+          }
+          & .tab-id {
+            color: #333;
+          }
+        }
+      }
 
-  body.dragover {
-    outline: 2px dashed #5fa8d3; outline-offset: -8px;
-    & #placeholder { color: #5fa8d3; }
-  }
+      .tab-time {
+        font-size: 11px;
+        color: #555;
+        white-space: nowrap;
+        line-height: 1.3;
+        transition: color 0.12s;
+      }
 
-  /* View-transition tuning for session swap */
-  ::view-transition-old(tbody), ::view-transition-new(tbody) { animation-duration: 0.18s; }
-</style>
-</head>
-<body>
+      .tab-id {
+        font-size: 9.5px;
+        color: #252525;
+        white-space: nowrap;
+        letter-spacing: 0.04em;
+        line-height: 1.3;
+        transition: color 0.12s;
+        cursor: pointer;
+        &:hover {
+          color: #555;
+        }
+      }
 
-<div id="toolbar">
-  <button id="btn-open">Open tracing folder</button>
-  <select id="sel" class="hidden"></select>
-  <span id="status">No folder selected</span>
-</div>
+      /* ── Content ─────────────────────────────────────────────── */
+      #table-wrap {
+        flex: 1;
+        overflow: auto;
+      }
 
-<div id="table-wrap">
-  <div id="placeholder">Click "Open tracing folder" and select the tracing/ directory</div>
-  <table id="tbl" class="hidden">
-    <thead>
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th.col-time {
+        width: 70px;
+      }
+      th.col-type {
+        width: 90px;
+      }
+
+      thead th {
+        position: sticky;
+        top: 0;
+        background: #0f0f0f;
+        border-bottom: 1px solid #1a1a1a;
+        padding: 6px 12px;
+        text-align: left;
+        color: #333;
+        font-weight: 500;
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      tbody {
+        & tr {
+          border-bottom: 1px solid #111;
+          content-visibility: auto;
+          contain-intrinsic-size: auto 50px;
+          &:hover {
+            background: #0f0f0f;
+          }
+        }
+        & td {
+          padding: 7px 12px;
+          vertical-align: top;
+        }
+      }
+
+      .time {
+        color: #333;
+        white-space: nowrap;
+        font-size: 11px;
+        padding-top: 9px;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 2px 7px;
+        font-size: 10px;
+        white-space: nowrap;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        &.b-user {
+          background: #0d2a45;
+          color: #5fa8d3;
+        }
+        &.b-assistant {
+          background: #172717;
+          color: #6dba6d;
+        }
+        &.b-tool {
+          background: #2a2000;
+          color: #d4a030;
+        }
+        &.b-result {
+          background: #18182a;
+          color: #8080c0;
+        }
+      }
+
+      .cell {
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .cell-user {
+        color: #a8d0f0;
+      }
+      .cell-assist {
+        color: #c0c0c0;
+      }
+      .tool-name {
+        color: #d4a030;
+        font-weight: 600;
+      }
+
+      .json-block {
+        margin-top: 4px;
+        overflow-x: auto;
+        & pre {
+          margin: 0;
+        }
+        & code {
+          font-family: inherit;
+          font-size: 12px;
+        }
+      }
+
+      .text-block {
+        background: #0f0f0f;
+        border: 1px solid #1e1e1e;
+        padding: 8px 12px;
+        margin-top: 4px;
+        color: #8888a8;
+      }
+
+      details > summary {
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+        padding: 2px 0;
+        color: #444;
+        &::-webkit-details-marker {
+          display: none;
+        }
+        &::before {
+          content: "▾";
+          display: inline-block;
+          width: 14px;
+          transition: transform 0.15s;
+        }
+      }
+      details:not([open]) > summary::before {
+        transform: rotate(-90deg);
+      }
+
+      #placeholder {
+        display: grid;
+        place-items: center;
+        height: 100%;
+        color: #555;
+        font-size: 13px;
+        & p {
+          line-height: 2;
+          text-align: center;
+        }
+        & .hint {
+          font-size: 11px;
+          color: #2a2a2a;
+        }
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      body.dragover {
+        outline: 2px dashed #3b82f6;
+        outline-offset: -6px;
+        & #placeholder {
+          color: #3b82f6;
+          & .hint {
+            color: #2a4a7a;
+          }
+        }
+      }
+
+      ::view-transition-old(tbody),
+      ::view-transition-new(tbody) {
+        animation-duration: 0.14s;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="toolbar">
+      <button type="button" id="btn-open">Open tracing folder</button>
+      <span id="status">No folder selected</span>
+    </div>
+
+    <div id="tab-rail" class="hidden">
+      <button
+        type="button"
+        class="rail-arrow"
+        id="tab-prev"
+        aria-label="Scroll tabs left"
+        title="Scroll left"
+      >
+        ‹
+      </button>
+      <div id="tab-strip"></div>
+      <button
+        type="button"
+        class="rail-arrow"
+        id="tab-next"
+        aria-label="Scroll tabs right"
+        title="Scroll right"
+      >
+        ›
+      </button>
+    </div>
+
+    <div id="table-wrap">
+      <div id="placeholder">
+        <p>
+          Click <strong>Open tracing folder</strong><br />or drag a
+          <code>tracing/</code> directory here
+        </p>
+        <p class="hint">Supports .jsonl session files</p>
+      </div>
+      <table id="tbl" class="hidden">
+        <thead>
+          <tr>
+            <th class="col-time">Time</th>
+            <th class="col-type">Type</th>
+            <th>Content</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <template id="row-tpl">
       <tr>
-        <th style="width:70px">Time</th>
-        <th style="width:90px">Type</th>
-        <th>Content</th>
+        <td class="time"></td>
+        <td><span class="badge"></span></td>
+        <td class="cell"></td>
       </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
-</div>
+    </template>
 
-<template id="row-tpl">
-  <tr>
-    <td class="time"></td>
-    <td><span class="badge"></span></td>
-    <td class="cell"></td>
-  </tr>
-</template>
+    <script>
+      const sessions = {};
+      let activeId = null;
 
-<script>
-const sessions = {};
+      const el = (id) => document.getElementById(id);
 
-const els = {
-  status:      document.getElementById('status'),
-  sel:         document.getElementById('sel'),
-  tbody:       document.getElementById('tbody'),
-  tbl:         document.getElementById('tbl'),
-  placeholder: document.getElementById('placeholder'),
-  rowTpl:      document.getElementById('row-tpl'),
-};
+      const BADGE = {
+        user: { label: "USER", badgeCls: "b-user", cellCls: "cell-user" },
+        assistant: {
+          label: "ASSISTANT",
+          badgeCls: "b-assistant",
+          cellCls: "cell-assist",
+        },
+        tool: { label: "TOOL CALL", badgeCls: "b-tool", cellCls: "" },
+        result: { label: "RESULT", badgeCls: "b-result", cellCls: "" },
+      };
 
-const BADGE = {
-  user:      { label: 'USER',      badgeCls: 'b-user',      cellCls: 'cell-user'  },
-  assistant: { label: 'ASSISTANT', badgeCls: 'b-assistant', cellCls: 'cell-assist' },
-  tool:      { label: 'TOOL CALL', badgeCls: 'b-tool',      cellCls: ''           },
-  result:    { label: 'RESULT',    badgeCls: 'b-result',    cellCls: ''           },
-};
+      // ── Open button ───────────────────────────────────────────────
+      el("btn-open").onclick = async () => {
+        try {
+          const dir = await window.showDirectoryPicker({ mode: "read" });
+          await loadDir(dir);
+        } catch (e) {
+          if (e.name !== "AbortError") console.error(e);
+        }
+      };
 
-document.getElementById('btn-open').onclick = async () => {
-  try {
-    const dir = await window.showDirectoryPicker({ mode: 'read' });
-    await loadDir(dir);
-  } catch (e) {
-    if (e.name !== 'AbortError') console.error(e);
-  }
-};
+      // ── Drag & drop ───────────────────────────────────────────────
+      let dragDepth = 0;
+      document.addEventListener("dragenter", (e) => {
+        e.preventDefault();
+        if (++dragDepth === 1) document.body.classList.add("dragover");
+      });
+      document.addEventListener("dragover", (e) => e.preventDefault());
+      document.addEventListener("dragleave", () => {
+        if (--dragDepth <= 0) {
+          dragDepth = 0;
+          document.body.classList.remove("dragover");
+        }
+      });
+      document.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        dragDepth = 0;
+        document.body.classList.remove("dragover");
+        for (const item of e.dataTransfer.items) {
+          const h = await item.getAsFileSystemHandle?.();
+          if (h?.kind === "directory") {
+            await loadDir(h);
+            return;
+          }
+        }
+      });
 
-els.sel.onchange = e => swapRender(e.target.value);
+      // ── Load directory ────────────────────────────────────────────
+      async function loadDir(dir) {
+        el("status").textContent = "Loading…";
+        activeId = null;
 
-// Drag & drop a folder anywhere on the page.
-document.addEventListener('dragover', e => {
-  e.preventDefault();
-  document.body.classList.add('dragover');
-});
-document.addEventListener('dragleave', e => {
-  if (e.target === document.documentElement) document.body.classList.remove('dragover');
-});
-document.addEventListener('drop', async e => {
-  e.preventDefault();
-  document.body.classList.remove('dragover');
-  for (const item of e.dataTransfer.items) {
-    const handle = await item.getAsFileSystemHandle?.();
-    if (handle?.kind === 'directory') { await loadDir(handle); return; }
-  }
-});
+        for (const k of Object.keys(sessions)) delete sessions[k];
+        el("tbody").replaceChildren();
+        el("tab-strip").replaceChildren();
 
-// Wrap render in a View Transition for a smooth swap; falls back if unsupported.
-function swapRender(id) {
-  if (document.startViewTransition) document.startViewTransition(() => render(id));
-  else render(id);
-}
+        const handles = [];
+        for await (const [name, handle] of dir)
+          if (handle.kind === "file" && name.endsWith(".jsonl"))
+            handles.push([name, handle]);
 
-function sessionTs(id) {
-  const first = sessions[id].find(r => r.timestamp);
-  return first ? new Date(first.timestamp).getTime() : 0;
-}
+        await Promise.all(
+          handles.map(async ([name, handle]) => {
+            const text = await (await handle.getFile()).text();
+            sessions[name.replace(/\.jsonl$/, "")] = text
+              .trim()
+              .split("\n")
+              .flatMap((l) => {
+                try {
+                  return [JSON.parse(l)];
+                } catch {
+                  return [];
+                }
+              });
+          }),
+        );
 
-async function loadDir(dir) {
-  els.status.textContent = 'Loading…';
+        const ids = Object.keys(sessions).sort(
+          (a, b) => sessionTs(b) - sessionTs(a),
+        );
+        if (!ids.length) {
+          el("status").textContent = "No .jsonl files found";
+          el("tab-rail").classList.add("hidden");
+          el("tbl").classList.add("hidden");
+          el("placeholder").classList.remove("hidden");
+          return;
+        }
 
-  const handles = [];
-  for await (const [name, handle] of dir) {
-    if (handle.kind === 'file' && name.endsWith('.jsonl')) handles.push([name, handle]);
-  }
+        el("status").textContent =
+          `${ids.length} session${ids.length > 1 ? "s" : ""}`;
+        buildTabs(ids);
+        selectTab(ids[0]);
+      }
 
-  await Promise.all(handles.map(async ([name, handle]) => {
-    const text = await (await handle.getFile()).text();
-    sessions[name.replace(/\.jsonl$/, '')] = text.trim().split('\n').flatMap(l => {
-      try { return [JSON.parse(l)]; } catch { return []; }
-    });
-  }));
+      function sessionTs(id) {
+        const first = sessions[id]?.find((r) => r.timestamp);
+        const t = first ? new Date(first.timestamp).getTime() : 0;
+        return Number.isFinite(t) ? t : 0;
+      }
 
-  const ids = Object.keys(sessions).sort((a, b) => sessionTs(b) - sessionTs(a));
-  if (!ids.length) { els.status.textContent = 'No .jsonl files found'; return; }
+      // ── Tab strip ─────────────────────────────────────────────────
+      function buildTabs(ids) {
+        const strip = el("tab-strip");
+        strip.innerHTML = "";
 
-  els.sel.innerHTML = ids.map(id => {
-    const ts = sessionTs(id);
-    const label = ts ? new Date(ts).toLocaleString() : id;
-    return `<option value="${id}">${label} — ${id.slice(0, 8)}</option>`;
-  }).join('');
-  els.sel.classList.remove('hidden');
-  els.status.textContent = `${ids.length} session(s)`;
-  swapRender(ids[0]);
-}
+        let lastDateKey = null;
 
-function render(id) {
-  const events = extract(sessions[id] || []);
-  const frag = document.createDocumentFragment();
+        for (const id of ids) {
+          const ts = sessionTs(id);
+          const dateKey = ts
+            ? new Date(ts).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+              })
+            : "—";
 
-  for (const ev of events) {
-    const row = els.rowTpl.content.firstElementChild.cloneNode(true);
-    row.querySelector('.time').textContent = ev.time;
-    const badge = row.querySelector('.badge');
-    badge.classList.add(ev.badgeCls);
-    badge.textContent = ev.label;
-    const cell = row.querySelector('.cell');
-    if (ev.cellCls) cell.classList.add(ev.cellCls);
-    cell.innerHTML = ev.html;
-    frag.appendChild(row);
-  }
+          // Date separator
+          if (dateKey !== lastDateKey) {
+            lastDateKey = dateKey;
+            const sep = document.createElement("div");
+            sep.className = "tab-date";
+            sep.innerHTML = `<span class="tab-date-label">${dateKey}</span>`;
+            strip.appendChild(sep);
+          }
 
-  els.tbody.replaceChildren(frag);
-  els.placeholder.classList.add('hidden');
-  els.tbl.classList.remove('hidden');
-}
+          // Tab
+          const tab = document.createElement("div");
+          tab.className = "tab";
+          tab.dataset.id = id;
 
-function extract(rows) {
-  const events = [];
-  for (const row of rows) {
-    const ts = fmtTime(row.timestamp);
-    if (row.type === 'user' && row.toolUseResult)
-      pushResult(events, ts, row);
-    else if (row.type === 'user' && !row.isMeta && !row.attachment)
-      pushUser(events, ts, row);
-    else if (row.type === 'assistant')
-      pushAssistant(events, ts, row);
-  }
-  return events;
-}
+          const timeStr = ts
+            ? new Date(ts).toLocaleTimeString("en-GB", {
+                hour12: false,
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "—";
 
-function pushUser(events, ts, row) {
-  const content = row.message?.content;
-  if (!content) return;
-  const text = typeof content === 'string' ? content
-    : Array.isArray(content) ? content.map(c => c.text || '').join('') : '';
-  const clean = stripSystemTags(text);
-  if (!clean.trim()) return;
-  events.push({ time: ts, ...BADGE.user, html: esc(clean) });
-}
+          const shortId = document.createElement("span");
+          shortId.className = "tab-id";
+          shortId.textContent = id.slice(0, 8);
+          shortId.title = "Click to copy filename";
+          shortId.onclick = (e) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(id + ".jsonl");
+            shortId.textContent = "copied!";
+            shortId.style.color = "#6dba6d";
+            setTimeout(() => {
+              shortId.textContent = id.slice(0, 8);
+              shortId.style.color = "";
+            }, 1200);
+          };
 
-function pushResult(events, ts, row) {
-  const r = row.toolUseResult;
-  let body = '';
-  if (typeof r === 'string') {
-    body = renderValue(r);
-  } else if (r.stdout !== undefined || r.stderr !== undefined) {
-    const out = (r.stdout || '').trimEnd();
-    const err = (r.stderr || '').trimEnd();
-    if (out) body += `<div class="text-block">${esc(out)}</div>`;
-    if (err) body += `<div class="text-block" style="color:#c07070">[stderr]\n${esc(err)}</div>`;
-    if (!out && !err) return;
-  } else if (Array.isArray(r.content)) {
-    body = renderValue(r.content.map(c => c.text || '').join(''));
-  } else {
-    body = jsonBlock(r);
-  }
-  if (!body) return;
-  events.push({ time: ts, ...BADGE.result, html: collapsible(body, '') });
-}
+          tab.innerHTML = `<span class="tab-time">${timeStr}</span>`;
+          tab.appendChild(shortId);
+          tab.tabIndex = 0;
+          tab.setAttribute("role", "tab");
+          tab.onclick = () => selectTab(id);
+          tab.onkeydown = (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              selectTab(id);
+            }
+          };
+          strip.appendChild(tab);
+        }
 
-function pushAssistant(events, ts, row) {
-  const content = row.message?.content;
-  if (!Array.isArray(content)) return;
-  for (const block of content) {
-    if (block.type === 'text' && block.text?.trim()) {
-      events.push({ time: ts, ...BADGE.assistant, html: esc(block.text) });
-    }
-    if (block.type === 'tool_use') {
-      const summary = `<span class="tool-name">${esc(block.name)}</span>`;
-      events.push({ time: ts, ...BADGE.tool, html: collapsible(jsonBlock(block.input), summary) });
-    }
-  }
-}
+        el("tab-rail").classList.remove("hidden");
+        updateArrows();
+      }
 
-// Wrap heavy content in <details open> so the user can click to collapse.
-function collapsible(body, summaryInner) {
-  return `<details open><summary>${summaryInner}</summary>${body}</details>`;
-}
+      function selectTab(id) {
+        if (activeId === id) return;
+        activeId = id;
 
-// Render a value: if it looks like JSON, pretty-print it; otherwise plain text block
-function renderValue(s) {
-  s = String(s ?? '').trim();
-  if (!s) return '';
-  if (s.startsWith('{') || s.startsWith('[')) {
-    try { return jsonBlock(JSON.parse(s)); } catch {}
-  }
-  return `<div class="text-block">${esc(s)}</div>`;
-}
+        // Update active class
+        el("tab-strip")
+          .querySelectorAll(".tab")
+          .forEach((t) => {
+            t.classList.toggle("active", t.dataset.id === id);
+          });
 
-function jsonBlock(obj) {
-  const extracted = [];
+        // Scroll active tab into view
+        const activeEl = el("tab-strip").querySelector(".tab.active");
+        if (activeEl)
+          activeEl.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+            inline: "nearest",
+          });
 
-  function strip(val) {
-    if (typeof val === 'string' && val.includes('\n')) {
-      extracted.push({ text: val });
-      return '…';
-    }
-    if (Array.isArray(val)) return val.map(strip);
-    if (val && typeof val === 'object') {
-      return Object.fromEntries(Object.entries(val).map(([k, v]) => [k, strip(v)]));
-    }
-    return val;
-  }
+        swapRender(id);
+      }
 
-  const stripped = strip(obj);
-  const code = JSON.stringify(stripped, null, 2);
-  const highlighted = hljs.highlight(code, { language: 'json' }).value;
+      // ── Arrow scroll buttons ──────────────────────────────────────
+      const strip = () => el("tab-strip");
+      const SCROLL_STEP = 280;
 
-  const blocks = extracted.map(e =>
-    `<div class="text-block">${esc(e.text)}</div>`
-  ).join('');
+      el("tab-prev").onclick = () =>
+        strip().scrollBy({ left: -SCROLL_STEP, behavior: "smooth" });
+      el("tab-next").onclick = () =>
+        strip().scrollBy({ left: SCROLL_STEP, behavior: "smooth" });
 
-  return `<div class="json-block"><pre><code class="hljs language-json">${highlighted}</code></pre></div>${blocks}`;
-}
+      function updateArrows() {
+        const s = strip();
+        el("tab-prev").disabled = s.scrollLeft <= 0;
+        el("tab-next").disabled =
+          s.scrollLeft >= s.scrollWidth - s.clientWidth - 1;
+      }
 
-// First three replacements remove system wrapper tags AND their content.
-// The final replacement strips any remaining tags while preserving inner text.
-function stripSystemTags(s) {
-  return s
-    .replace(/<local-command-caveat>[\s\S]*?<\/local-command-caveat>/g, '')
-    .replace(/<command-name>[^<]*<\/command-name>/g, '')
-    .replace(/<command-message>[^<]*<\/command-message>/g, '')
-    .replace(/<command-args>([^<]*)<\/command-args>/g, '$1')
-    .replace(/<[^>]+>/g, '')
-    .trim();
-}
+      // Mouse-wheel horizontal scroll on tab strip
+      el("tab-strip")?.addEventListener(
+        "wheel",
+        (e) => {
+          if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // already horizontal
+          e.preventDefault();
+          strip().scrollBy({ left: e.deltaY * 1.2, behavior: "auto" });
+        },
+        { passive: false },
+      );
 
-function fmtTime(ts) {
-  if (!ts) return '';
-  return new Date(ts).toLocaleTimeString('en-GB', { hour12: false });
-}
+      document.addEventListener("DOMContentLoaded", () => {
+        const s = el("tab-strip");
+        if (s) s.addEventListener("scroll", updateArrows, { passive: true });
+      });
 
-function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-</script>
-</body>
+      // ── Render ────────────────────────────────────────────────────
+      function swapRender(id) {
+        if (document.startViewTransition)
+          document.startViewTransition(() => render(id));
+        else render(id);
+      }
+
+      function render(id) {
+        const events = extract(sessions[id] || []);
+        const frag = document.createDocumentFragment();
+        const tpl = el("row-tpl");
+
+        for (const ev of events) {
+          const row = tpl.content.firstElementChild.cloneNode(true);
+          row.querySelector(".time").textContent = ev.time;
+          const badge = row.querySelector(".badge");
+          badge.classList.add(ev.badgeCls);
+          badge.textContent = ev.label;
+          const cell = row.querySelector(".cell");
+          if (ev.cellCls) cell.classList.add(ev.cellCls);
+          cell.innerHTML = ev.html;
+          frag.appendChild(row);
+        }
+
+        el("tbody").replaceChildren(frag);
+        el("placeholder").classList.add("hidden");
+        el("tbl").classList.remove("hidden");
+        el("table-wrap").scrollTop = 0;
+      }
+
+      // ── Event extraction ──────────────────────────────────────────
+      function extract(rows) {
+        const events = [];
+        for (const row of rows) {
+          const ts = fmtTime(row.timestamp);
+          if (row.type === "user" && row.toolUseResult)
+            pushResult(events, ts, row);
+          else if (row.type === "user" && !row.isMeta)
+            pushUser(events, ts, row);
+          else if (row.type === "assistant") pushAssistant(events, ts, row);
+        }
+        return events;
+      }
+
+      function pushUser(events, ts, row) {
+        const content = row.message?.content;
+        if (!content) return;
+        const text =
+          typeof content === "string"
+            ? content
+            : Array.isArray(content)
+              ? content.map((c) => c.text || "").join("")
+              : "";
+        const clean = stripSystemTags(text);
+        if (!clean.trim()) return;
+        events.push({ time: ts, ...BADGE.user, html: esc(clean) });
+      }
+
+      function pushResult(events, ts, row) {
+        const r = row.toolUseResult;
+        let body = "";
+        if (typeof r === "string") {
+          body = renderValue(r);
+        } else if (r.stdout !== undefined || r.stderr !== undefined) {
+          const out = (r.stdout || "").trimEnd();
+          const err = (r.stderr || "").trimEnd();
+          if (out) body += `<div class="text-block">${esc(out)}</div>`;
+          if (err)
+            body += `<div class="text-block" style="color:#c07070">[stderr]\n${esc(err)}</div>`;
+          if (!out && !err) return;
+        } else if (Array.isArray(r.content)) {
+          body = renderValue(r.content.map((c) => c.text || "").join(""));
+        } else {
+          body = jsonBlock(r);
+        }
+        if (!body) return;
+        events.push({ time: ts, ...BADGE.result, html: collapsible(body, "") });
+      }
+
+      function pushAssistant(events, ts, row) {
+        const content = row.message?.content;
+        if (!Array.isArray(content)) return;
+        for (const block of content) {
+          if (block.type === "text" && block.text?.trim())
+            events.push({
+              time: ts,
+              ...BADGE.assistant,
+              html: esc(block.text),
+            });
+          if (block.type === "tool_use") {
+            const summary = `<span class="tool-name">${esc(block.name)}</span>`;
+            events.push({
+              time: ts,
+              ...BADGE.tool,
+              html: collapsible(jsonBlock(block.input), summary),
+            });
+          }
+        }
+      }
+
+      function collapsible(body, summaryInner) {
+        return `<details open><summary>${summaryInner}</summary>${body}</details>`;
+      }
+
+      function renderValue(s) {
+        s = String(s ?? "").trim();
+        if (!s) return "";
+        if (s.startsWith("{") || s.startsWith("[")) {
+          try {
+            return jsonBlock(JSON.parse(s));
+          } catch {}
+        }
+        return `<div class="text-block">${esc(s)}</div>`;
+      }
+
+      function jsonBlock(obj) {
+        const extracted = [];
+        function strip(val) {
+          if (typeof val === "string" && val.includes("\n")) {
+            extracted.push({ text: val });
+            return "…";
+          }
+          if (Array.isArray(val)) return val.map(strip);
+          if (val && typeof val === "object")
+            return Object.fromEntries(
+              Object.entries(val).map(([k, v]) => [k, strip(v)]),
+            );
+          return val;
+        }
+        const code = JSON.stringify(strip(obj), null, 2);
+        const highlighted = hljs.highlight(code, { language: "json" }).value;
+        const blocks = extracted
+          .map((e) => `<div class="text-block">${esc(e.text)}</div>`)
+          .join("");
+        return `<div class="json-block"><pre><code class="hljs language-json">${highlighted}</code></pre></div>${blocks}`;
+      }
+
+      function stripSystemTags(s) {
+        return s
+          .replace(
+            /<local-command-caveat>[\s\S]*?<\/local-command-caveat>/g,
+            "",
+          )
+          .replace(/<command-name>[^<]*<\/command-name>/g, "")
+          .replace(/<command-message>[^<]*<\/command-message>/g, "")
+          .replace(/<command-args>([^<]*)<\/command-args>/g, "$1")
+          .replace(/<[^>]+>/g, "")
+          .trim();
+      }
+
+      function fmtTime(ts) {
+        if (!ts) return "";
+        return new Date(ts).toLocaleTimeString("en-GB", { hour12: false });
+      }
+
+      function esc(s) {
+        return String(s ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+    </script>
+  </body>
 </html>
