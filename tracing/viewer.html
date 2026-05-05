@@ -28,106 +28,87 @@
     flex-shrink: 0;
   }
 
-  button {
-    background: #2a2a2a;
-    color: #d4d4d4;
-    border: 1px solid #3a3a3a;
-    padding: 5px 12px;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 12px;
-  }
-  button:hover { background: #333; }
+  /* Shared between button and select */
+  :is(button, select) { color: #d4d4d4; border: 1px solid #3a3a3a; font-family: inherit; font-size: 12px; }
+  button { background: #2a2a2a; padding: 5px 12px; cursor: pointer; &:hover { background: #333; } }
+  select { background: #1a1a1a; padding: 5px 8px; max-width: 500px; }
 
-  select {
-    background: #1a1a1a;
-    color: #d4d4d4;
-    border: 1px solid #3a3a3a;
-    padding: 5px 8px;
-    font-family: inherit;
-    font-size: 12px;
-    max-width: 500px;
-  }
-
-  #status { color: #555; font-size: 12px; }
-
+  #status   { color: #555; font-size: 12px; }
   #table-wrap { flex: 1; overflow: auto; }
-
-  table { width: 100%; border-collapse: collapse; }
+  table     { width: 100%; border-collapse: collapse; }
 
   thead th {
-    position: sticky;
-    top: 0;
+    position: sticky; top: 0;
     background: #161616;
     border-bottom: 1px solid #2a2a2a;
     padding: 7px 12px;
-    text-align: left;
-    color: #666;
-    font-weight: normal;
-    white-space: nowrap;
+    text-align: left; color: #666; font-weight: normal; white-space: nowrap;
   }
 
-  tbody tr { border-bottom: 1px solid #1a1a1a; }
-  tbody tr:hover { background: #141414; }
-
-  td { padding: 7px 12px; vertical-align: top; }
+  tbody {
+    & tr {
+      border-bottom: 1px solid #1a1a1a;
+      content-visibility: auto;
+      contain-intrinsic-size: auto 50px;
+      &:hover { background: #141414; }
+    }
+    & td { padding: 7px 12px; vertical-align: top; }
+  }
 
   .time { color: #555; white-space: nowrap; font-size: 11px; padding-top: 9px; }
 
   .badge {
-    display: inline-block;
-    padding: 2px 7px;
-    font-size: 11px;
-    white-space: nowrap;
-    font-weight: 600;
-    letter-spacing: 0.03em;
+    display: inline-block; padding: 2px 7px;
+    font-size: 11px; white-space: nowrap; font-weight: 600; letter-spacing: 0.03em;
+    &.b-user      { background: #0d2a45; color: #5fa8d3; }
+    &.b-assistant { background: #1a2a1a; color: #6dba6d; }
+    &.b-tool      { background: #2a2000; color: #d4a030; }
+    &.b-result    { background: #1a1a2a; color: #8080c0; }
   }
 
-  .b-user      { background: #0d2a45; color: #5fa8d3; }
-  .b-assistant { background: #1a2a1a; color: #6dba6d; }
-  .b-tool      { background: #2a2000; color: #d4a030; }
-  .b-result    { background: #1a1a2a; color: #8080c0; }
-
-  .cell { line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-
+  .cell        { line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
   .cell-user   { color: #a8d0f0; }
   .cell-assist { color: #c8c8c8; }
-
-  .tool-name { color: #d4a030; font-weight: 600; display: block; margin-bottom: 6px; }
+  .tool-name   { color: #d4a030; font-weight: 600; }
 
   .json-block {
-    margin-top: 4px;
-    overflow-x: auto;
-    border-radius: 0;
-  }
-  .json-block pre { margin: 0; }
-  .json-block code { font-family: ui-monospace, monospace; font-size: 12px; }
-
-  .text-block {
-    background: #141414;
-    border: 1px solid #222;
-    padding: 8px 12px;
-    margin-top: 4px;
-    color: #9090b8;
+    margin-top: 4px; overflow-x: auto;
+    & pre  { margin: 0; }
+    & code { font-family: inherit; font-size: 12px; }
   }
 
-  #placeholder {
-    display: flex; align-items: center; justify-content: center;
-    height: 100%; color: #333; font-size: 14px;
+  .text-block { background: #141414; border: 1px solid #222; padding: 8px 12px; margin-top: 4px; color: #9090b8; }
+
+  details > summary {
+    cursor: pointer; list-style: none; user-select: none; padding: 2px 0; color: #555;
+    &::-webkit-details-marker { display: none; }
+    &::before { content: '▾'; display: inline-block; width: 14px; transition: transform 0.15s; }
   }
+  details:not([open]) > summary::before { transform: rotate(-90deg); }
+
+  #placeholder { display: grid; place-items: center; height: 100%; color: #333; font-size: 14px; }
+  .hidden      { display: none !important; }
+
+  body.dragover {
+    outline: 2px dashed #5fa8d3; outline-offset: -8px;
+    & #placeholder { color: #5fa8d3; }
+  }
+
+  /* View-transition tuning for session swap */
+  ::view-transition-old(tbody), ::view-transition-new(tbody) { animation-duration: 0.18s; }
 </style>
 </head>
 <body>
 
 <div id="toolbar">
   <button id="btn-open">Open tracing folder</button>
-  <select id="sel" style="display:none"></select>
+  <select id="sel" class="hidden"></select>
   <span id="status">No folder selected</span>
 </div>
 
 <div id="table-wrap">
   <div id="placeholder">Click "Open tracing folder" and select the tracing/ directory</div>
-  <table id="tbl" style="display:none">
+  <table id="tbl" class="hidden">
     <thead>
       <tr>
         <th style="width:70px">Time</th>
@@ -139,8 +120,32 @@
   </table>
 </div>
 
+<template id="row-tpl">
+  <tr>
+    <td class="time"></td>
+    <td><span class="badge"></span></td>
+    <td class="cell"></td>
+  </tr>
+</template>
+
 <script>
 const sessions = {};
+
+const els = {
+  status:      document.getElementById('status'),
+  sel:         document.getElementById('sel'),
+  tbody:       document.getElementById('tbody'),
+  tbl:         document.getElementById('tbl'),
+  placeholder: document.getElementById('placeholder'),
+  rowTpl:      document.getElementById('row-tpl'),
+};
+
+const BADGE = {
+  user:      { label: 'USER',      badgeCls: 'b-user',      cellCls: 'cell-user'  },
+  assistant: { label: 'ASSISTANT', badgeCls: 'b-assistant', cellCls: 'cell-assist' },
+  tool:      { label: 'TOOL CALL', badgeCls: 'b-tool',      cellCls: ''           },
+  result:    { label: 'RESULT',    badgeCls: 'b-result',    cellCls: ''           },
+};
 
 document.getElementById('btn-open').onclick = async () => {
   try {
@@ -151,117 +156,153 @@ document.getElementById('btn-open').onclick = async () => {
   }
 };
 
-document.getElementById('sel').onchange = e => render(e.target.value);
+els.sel.onchange = e => swapRender(e.target.value);
+
+// Drag & drop a folder anywhere on the page.
+document.addEventListener('dragover', e => {
+  e.preventDefault();
+  document.body.classList.add('dragover');
+});
+document.addEventListener('dragleave', e => {
+  if (e.target === document.documentElement) document.body.classList.remove('dragover');
+});
+document.addEventListener('drop', async e => {
+  e.preventDefault();
+  document.body.classList.remove('dragover');
+  for (const item of e.dataTransfer.items) {
+    const handle = await item.getAsFileSystemHandle?.();
+    if (handle?.kind === 'directory') { await loadDir(handle); return; }
+  }
+});
+
+// Wrap render in a View Transition for a smooth swap; falls back if unsupported.
+function swapRender(id) {
+  if (document.startViewTransition) document.startViewTransition(() => render(id));
+  else render(id);
+}
+
+function sessionTs(id) {
+  const first = sessions[id].find(r => r.timestamp);
+  return first ? new Date(first.timestamp).getTime() : 0;
+}
 
 async function loadDir(dir) {
-  document.getElementById('status').textContent = 'Loading…';
+  els.status.textContent = 'Loading…';
+
+  const handles = [];
   for await (const [name, handle] of dir) {
-    if (handle.kind !== 'file' || !name.endsWith('.jsonl')) continue;
-    const text = await (await handle.getFile()).text();
-    const rows = text.trim().split('\n').flatMap(l => {
-      try { return [JSON.parse(l)]; } catch { return []; }
-    });
-    sessions[name.replace(/\.jsonl$/, '')] = rows;
+    if (handle.kind === 'file' && name.endsWith('.jsonl')) handles.push([name, handle]);
   }
 
-  const ids = Object.keys(sessions).sort();
-  if (!ids.length) { document.getElementById('status').textContent = 'No .jsonl files found'; return; }
+  await Promise.all(handles.map(async ([name, handle]) => {
+    const text = await (await handle.getFile()).text();
+    sessions[name.replace(/\.jsonl$/, '')] = text.trim().split('\n').flatMap(l => {
+      try { return [JSON.parse(l)]; } catch { return []; }
+    });
+  }));
 
-  const sel = document.getElementById('sel');
-  sel.innerHTML = ids.map(id => {
-    const first = sessions[id].find(r => r.timestamp);
-    const ts = first ? new Date(first.timestamp).toLocaleString() : id;
-    return `<option value="${id}">${ts} — ${id.slice(0, 8)}</option>`;
+  const ids = Object.keys(sessions).sort((a, b) => sessionTs(b) - sessionTs(a));
+  if (!ids.length) { els.status.textContent = 'No .jsonl files found'; return; }
+
+  els.sel.innerHTML = ids.map(id => {
+    const ts = sessionTs(id);
+    const label = ts ? new Date(ts).toLocaleString() : id;
+    return `<option value="${id}">${label} — ${id.slice(0, 8)}</option>`;
   }).join('');
-  sel.style.display = '';
-  document.getElementById('status').textContent = `${ids.length} session(s)`;
-  render(ids[0]);
+  els.sel.classList.remove('hidden');
+  els.status.textContent = `${ids.length} session(s)`;
+  swapRender(ids[0]);
 }
 
 function render(id) {
-  const rows = sessions[id] || [];
-  const events = extract(rows);
-  const tbody = document.getElementById('tbody');
-  tbody.innerHTML = '';
-  events.forEach(ev => {
-    const tr = document.createElement('tr');
-    const td = document.createElement('td');
-    td.className = `cell ${ev.cellCls}`;
-    td.innerHTML = ev.html;
-    tr.innerHTML = `<td class="time">${ev.time}</td><td><span class="badge ${ev.badgeCls}">${ev.label}</span></td>`;
-    tr.appendChild(td);
-    tbody.appendChild(tr);
-  });
-  document.getElementById('placeholder').style.display = 'none';
-  document.getElementById('tbl').style.display = '';
+  const events = extract(sessions[id] || []);
+  const frag = document.createDocumentFragment();
+
+  for (const ev of events) {
+    const row = els.rowTpl.content.firstElementChild.cloneNode(true);
+    row.querySelector('.time').textContent = ev.time;
+    const badge = row.querySelector('.badge');
+    badge.classList.add(ev.badgeCls);
+    badge.textContent = ev.label;
+    const cell = row.querySelector('.cell');
+    if (ev.cellCls) cell.classList.add(ev.cellCls);
+    cell.innerHTML = ev.html;
+    frag.appendChild(row);
+  }
+
+  els.tbody.replaceChildren(frag);
+  els.placeholder.classList.add('hidden');
+  els.tbl.classList.remove('hidden');
 }
 
 function extract(rows) {
   const events = [];
-
   for (const row of rows) {
-    const t = row.type;
     const ts = fmtTime(row.timestamp);
+    if (row.type === 'user' && row.toolUseResult)
+      pushResult(events, ts, row);
+    else if (row.type === 'user' && !row.isMeta && !row.attachment)
+      pushUser(events, ts, row);
+    else if (row.type === 'assistant')
+      pushAssistant(events, ts, row);
+  }
+  return events;
+}
 
-    // User prompt
-    if (t === 'user' && !row.toolUseResult && !row.isMeta && !row.attachment) {
-      const content = row.message?.content;
-      if (!content) continue;
-      const text = typeof content === 'string' ? content
-        : Array.isArray(content) ? content.map(c => c.text || '').join('') : '';
-      const clean = stripSystemTags(text);
-      if (!clean.trim()) continue;
-      events.push({ time: ts, label: 'USER', badgeCls: 'b-user', cellCls: 'cell-user', html: esc(clean) });
-      continue;
+function pushUser(events, ts, row) {
+  const content = row.message?.content;
+  if (!content) return;
+  const text = typeof content === 'string' ? content
+    : Array.isArray(content) ? content.map(c => c.text || '').join('') : '';
+  const clean = stripSystemTags(text);
+  if (!clean.trim()) return;
+  events.push({ time: ts, ...BADGE.user, html: esc(clean) });
+}
+
+function pushResult(events, ts, row) {
+  const r = row.toolUseResult;
+  let body = '';
+  if (typeof r === 'string') {
+    body = renderValue(r);
+  } else if (r.stdout !== undefined || r.stderr !== undefined) {
+    const out = (r.stdout || '').trimEnd();
+    const err = (r.stderr || '').trimEnd();
+    if (out) body += `<div class="text-block">${esc(out)}</div>`;
+    if (err) body += `<div class="text-block" style="color:#c07070">[stderr]\n${esc(err)}</div>`;
+    if (!out && !err) return;
+  } else if (Array.isArray(r.content)) {
+    body = renderValue(r.content.map(c => c.text || '').join(''));
+  } else {
+    body = jsonBlock(r);
+  }
+  if (!body) return;
+  events.push({ time: ts, ...BADGE.result, html: collapsible(body, '') });
+}
+
+function pushAssistant(events, ts, row) {
+  const content = row.message?.content;
+  if (!Array.isArray(content)) return;
+  for (const block of content) {
+    if (block.type === 'text' && block.text?.trim()) {
+      events.push({ time: ts, ...BADGE.assistant, html: esc(block.text) });
     }
-
-    // Tool result
-    if (t === 'user' && row.toolUseResult) {
-      const r = row.toolUseResult;
-      let html = '';
-      if (typeof r === 'string') {
-        html = renderValue(r);
-      } else if (r.stdout !== undefined || r.stderr !== undefined) {
-        const out = (r.stdout || '').trimEnd();
-        const err = (r.stderr || '').trimEnd();
-        if (out) html += `<div class="text-block">${esc(out)}</div>`;
-        if (err) html += `<div class="text-block" style="color:#c07070">[stderr]\n${esc(err)}</div>`;
-        if (!out && !err) continue;
-      } else if (Array.isArray(r.content)) {
-        const text = r.content.map(c => c.text || '').join('');
-        html = renderValue(text);
-      } else {
-        html = jsonBlock(r);
-      }
-      if (!html) continue;
-      events.push({ time: ts, label: 'RESULT', badgeCls: 'b-result', cellCls: '', html });
-      continue;
-    }
-
-    // Assistant
-    if (t === 'assistant') {
-      const content = row.message?.content;
-      if (!Array.isArray(content)) continue;
-      for (const block of content) {
-        if (block.type === 'text' && block.text?.trim()) {
-          events.push({ time: ts, label: 'ASSISTANT', badgeCls: 'b-assistant', cellCls: 'cell-assist', html: esc(block.text) });
-        }
-        if (block.type === 'tool_use') {
-          const html = `<span class="tool-name">${esc(block.name)}</span>${jsonBlock(block.input)}`;
-          events.push({ time: ts, label: 'TOOL CALL', badgeCls: 'b-tool', cellCls: '', html });
-        }
-      }
+    if (block.type === 'tool_use') {
+      const summary = `<span class="tool-name">${esc(block.name)}</span>`;
+      events.push({ time: ts, ...BADGE.tool, html: collapsible(jsonBlock(block.input), summary) });
     }
   }
+}
 
-  return events;
+// Wrap heavy content in <details open> so the user can click to collapse.
+function collapsible(body, summaryInner) {
+  return `<details open><summary>${summaryInner}</summary>${body}</details>`;
 }
 
 // Render a value: if it looks like JSON, pretty-print it; otherwise plain text block
 function renderValue(s) {
   s = String(s ?? '').trim();
   if (!s) return '';
-  if ((s.startsWith('{') || s.startsWith('[')) ) {
+  if (s.startsWith('{') || s.startsWith('[')) {
     try { return jsonBlock(JSON.parse(s)); } catch {}
   }
   return `<div class="text-block">${esc(s)}</div>`;
@@ -293,6 +334,8 @@ function jsonBlock(obj) {
   return `<div class="json-block"><pre><code class="hljs language-json">${highlighted}</code></pre></div>${blocks}`;
 }
 
+// First three replacements remove system wrapper tags AND their content.
+// The final replacement strips any remaining tags while preserving inner text.
 function stripSystemTags(s) {
   return s
     .replace(/<local-command-caveat>[\s\S]*?<\/local-command-caveat>/g, '')
