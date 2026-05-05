@@ -1,11 +1,38 @@
 {
   "plugins": [
     {
+      "name": "network",
+      "description": "Skills for network scanning and analysis via CLI",
+      "source": {
+        "type": "git",
+        "url": "https://github.com/dimadem/claude-code-tools.git",
+        "directory": "network"
+      }
+    },
+    {
+      "name": "tracing",
+      "description": "Logs Claude Code sessions to JSONL files for debugging and pipeline analysis",
+      "source": {
+        "type": "git",
+        "url": "https://github.com/dimadem/claude-code-tools.git",
+        "directory": "tracing"
+      }
+    },
+    {
+      "name": "media",
+      "description": "Skills for media processing via CLI",
+      "source": {
+        "type": "git",
+        "url": "https://github.com/dimadem/claude-code-tools.git",
+        "directory": "media"
+      }
+    },
+    {
       "name": "subagents",
       "description": "Skills for delegating tasks to external AI subagents via CLI",
       "source": {
         "type": "git",
-        "url": "https://github.com/dimadem/agentic-stuff.git",
+        "url": "https://github.com/dimadem/claude-code-tools.git",
         "directory": "subagents"
       }
     }

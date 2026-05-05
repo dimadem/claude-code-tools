@@ -1,6 +1,6 @@
 {
-  "name": "subagents",
-  "description": "Skills for delegating tasks to external AI subagents via CLI",
+  "name": "tracing",
+  "description": "Logs Claude Code sessions to JSONL files for debugging and pipeline analysis",
   "version": "1.0.0",
   "author": {
     "name": "Dima Dem"

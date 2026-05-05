@@ -1,6 +1,6 @@
 {
-  "name": "subagents",
-  "description": "Skills for delegating tasks to external AI subagents via CLI",
+  "name": "media",
+  "description": "Skills for media processing via CLI",
   "version": "1.0.0",
   "author": {
     "name": "Dima Dem"
