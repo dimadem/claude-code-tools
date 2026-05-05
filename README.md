@@ -39,13 +39,33 @@ Logs every Claude Code session to JSONL files for debugging and pipeline analysi
 
 Output: `~/.claude/tracing/<session_id>.jsonl`
 
-## Install plugins
+## Install
+
+**1. Add the marketplace** (once):
 
 ```bash
 /plugin marketplace add dimadem/claude-code-tools
+```
+
+**2. Install plugins** (pick what you need):
+
+AI subagents:
+```bash
 /plugin install subagents@dimadem-claude-code-tools
+```
+
+Media processing:
+```bash
 /plugin install media@dimadem-claude-code-tools
+```
+
+Network scanning:
+```bash
 /plugin install network@dimadem-claude-code-tools
+```
+
+Session tracing:
+```bash
 /plugin install tracing@dimadem-claude-code-tools
 ```
 
