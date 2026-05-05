@@ -68,6 +68,69 @@
         margin-left: 2px;
       }
 
+      .match-nav {
+        background: #0f0f0f;
+        border: 1px solid #1e1e1e;
+        color: #888;
+        font-family: inherit;
+        font-size: 13px;
+        line-height: 1;
+        padding: 3px 8px;
+        cursor: pointer;
+        transition:
+          color 0.12s,
+          border-color 0.12s;
+        &:hover:not(:disabled) {
+          color: #ff6060;
+          border-color: #5a2020;
+        }
+        &:disabled {
+          opacity: 0.25;
+          cursor: default;
+        }
+      }
+      #match-prev {
+        margin-left: auto;
+      }
+      #match-count {
+        color: #666;
+        font-size: 10px;
+        min-width: 38px;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      #search {
+        background: #0f0f0f;
+        border: 1px solid #1e1e1e;
+        color: #c8c8c8;
+        font-family: inherit;
+        font-size: 11px;
+        padding: 4px 10px;
+        width: 220px;
+        outline: none;
+        transition: border-color 0.12s;
+        &::placeholder {
+          color: #444;
+        }
+        &:focus {
+          border-color: #2a5580;
+        }
+        &:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        &::-webkit-search-cancel-button {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 12px;
+          width: 12px;
+          background: #444;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 2 L10 10 M10 2 L2 10' stroke='black' stroke-width='2'/></svg>") center/contain no-repeat;
+          cursor: pointer;
+        }
+      }
+
       /* ── Tab Rail ────────────────────────────────────────────── */
       #tab-rail {
         display: flex;
@@ -257,11 +320,30 @@
           &:hover {
             background: #0f0f0f;
           }
+          &.has-hl {
+            background: #2a0a0a;
+            box-shadow: inset 3px 0 0 #ff3030;
+            &:hover {
+              background: #3a0e0e;
+            }
+            &.is-current-match {
+              background: #4a1414;
+              box-shadow: inset 3px 0 0 #ff8080;
+            }
+          }
         }
         & td {
           padding: 7px 12px;
           vertical-align: top;
         }
+      }
+
+      mark.hl {
+        background: #ff2030;
+        color: #fff;
+        padding: 0 2px;
+        border-radius: 2px;
+        font-weight: 600;
       }
 
       .time {
@@ -393,6 +475,33 @@
     <div id="toolbar">
       <button type="button" id="btn-open">Open tracing folder</button>
       <span id="status">No folder selected</span>
+      <button
+        type="button"
+        class="match-nav"
+        id="match-prev"
+        title="Previous match (Shift+Enter)"
+        disabled
+      >
+        ‹
+      </button>
+      <span id="match-count"></span>
+      <button
+        type="button"
+        class="match-nav"
+        id="match-next"
+        title="Next match (Enter)"
+        disabled
+      >
+        ›
+      </button>
+      <input
+        type="search"
+        id="search"
+        placeholder="Search sessions…"
+        autocomplete="off"
+        spellcheck="false"
+        disabled
+      />
     </div>
 
     <div id="tab-rail" class="hidden">
@@ -447,7 +556,12 @@
 
     <script>
       const sessions = {};
+      const sessionIndex = {};
       let activeId = null;
+      let allIds = [];
+      let currentTokens = [];
+      let currentMatches = [];
+      let currentMatchIdx = -1;
 
       const el = (id) => document.getElementById(id);
 
@@ -504,6 +618,7 @@
         activeId = null;
 
         for (const k of Object.keys(sessions)) delete sessions[k];
+        for (const k of Object.keys(sessionIndex)) delete sessionIndex[k];
         el("tbody").replaceChildren();
         el("tab-strip").replaceChildren();
 
@@ -531,6 +646,11 @@
         const ids = Object.keys(sessions).sort(
           (a, b) => sessionTs(b) - sessionTs(a),
         );
+        allIds = ids;
+        for (const id of ids) sessionIndex[id] = buildIndex(sessions[id]);
+
+        const search = el("search");
+        search.disabled = !ids.length;
         if (!ids.length) {
           el("status").textContent = "No .jsonl files found";
           el("tab-rail").classList.add("hidden");
@@ -539,10 +659,41 @@
           return;
         }
 
-        el("status").textContent =
-          `${ids.length} session${ids.length > 1 ? "s" : ""}`;
         buildTabs(ids);
-        selectTab(ids[0]);
+        applyFilter();
+      }
+
+      function buildIndex(rows) {
+        const parts = [];
+        for (const row of rows) {
+          const c = row.message?.content;
+          if (typeof c === "string") parts.push(c);
+          else if (Array.isArray(c)) {
+            for (const b of c) {
+              if (b.type === "text" && b.text) parts.push(b.text);
+              else if (b.text) parts.push(b.text);
+              if (b.type === "tool_use") {
+                if (b.name) parts.push(b.name);
+                if (b.input) {
+                  try {
+                    parts.push(JSON.stringify(b.input));
+                  } catch {}
+                }
+              }
+            }
+          }
+          const r = row.toolUseResult;
+          if (r) {
+            if (typeof r === "string") parts.push(r);
+            else {
+              if (r.stdout) parts.push(r.stdout);
+              if (r.stderr) parts.push(r.stderr);
+              if (Array.isArray(r.content))
+                for (const x of r.content) if (x.text) parts.push(x.text);
+            }
+          }
+        }
+        return parts.join("\n").toLowerCase();
       }
 
       function sessionTs(id) {
@@ -622,6 +773,66 @@
         updateArrows();
       }
 
+      function applyFilter() {
+        const q = el("search").value.trim().toLowerCase();
+        const tokens = q ? q.split(/\s+/) : [];
+        currentTokens = tokens;
+        const matchIds = new Set(
+          allIds.filter((id) => {
+            const idx = sessionIndex[id] || "";
+            return tokens.every((t) => idx.includes(t));
+          }),
+        );
+
+        const strip = el("tab-strip");
+        const children = Array.from(strip.children);
+        for (let i = 0; i < children.length; i++) {
+          const node = children[i];
+          if (node.classList.contains("tab")) {
+            const visible = matchIds.has(node.dataset.id);
+            node.style.display = visible ? "" : "none";
+          }
+        }
+        // Hide date separators with no visible tabs underneath
+        for (let i = 0; i < children.length; i++) {
+          const node = children[i];
+          if (!node.classList.contains("tab-date")) continue;
+          let anyVisible = false;
+          for (let j = i + 1; j < children.length; j++) {
+            const n = children[j];
+            if (n.classList.contains("tab-date")) break;
+            if (n.classList.contains("tab") && n.style.display !== "none") {
+              anyVisible = true;
+              break;
+            }
+          }
+          node.style.display = anyVisible ? "" : "none";
+        }
+
+        const total = allIds.length;
+        const shown = matchIds.size;
+        el("status").textContent = q
+          ? `${shown} of ${total} session${total === 1 ? "" : "s"}`
+          : `${total} session${total === 1 ? "" : "s"}`;
+
+        if (!shown) {
+          activeId = null;
+          el("tbl").classList.add("hidden");
+          el("placeholder").classList.remove("hidden");
+          el("placeholder").querySelector("p").innerHTML = q
+            ? "No sessions match your search"
+            : 'Click <strong>Open tracing folder</strong><br />or drag a <code>tracing/</code> directory here';
+        } else if (!activeId || !matchIds.has(activeId)) {
+          const firstVisible = allIds.find((id) => matchIds.has(id));
+          if (firstVisible) selectTab(firstVisible);
+        } else {
+          render(activeId);
+        }
+        updateArrows();
+      }
+
+      el("search").addEventListener("input", applyFilter);
+
       function selectTab(id) {
         if (activeId === id) return;
         activeId = id;
@@ -698,6 +909,8 @@
           const cell = row.querySelector(".cell");
           if (ev.cellCls) cell.classList.add(ev.cellCls);
           cell.innerHTML = ev.html;
+          if (currentTokens.length && highlightTokens(cell, currentTokens))
+            row.classList.add("has-hl");
           frag.appendChild(row);
         }
 
@@ -705,7 +918,51 @@
         el("placeholder").classList.add("hidden");
         el("tbl").classList.remove("hidden");
         el("table-wrap").scrollTop = 0;
+        updateMatchNav();
       }
+
+      function updateMatchNav() {
+        currentMatches = Array.from(
+          el("tbody").querySelectorAll("tr.has-hl"),
+        );
+        currentMatchIdx = currentMatches.length ? 0 : -1;
+        for (const r of currentMatches)
+          r.classList.remove("is-current-match");
+        if (currentMatchIdx >= 0)
+          currentMatches[0].classList.add("is-current-match");
+        refreshMatchUI();
+      }
+
+      function refreshMatchUI() {
+        const total = currentMatches.length;
+        const enabled = total > 1;
+        el("match-prev").disabled = !enabled;
+        el("match-next").disabled = !enabled;
+        el("match-count").textContent = total
+          ? `${currentMatchIdx + 1}/${total}`
+          : "";
+      }
+
+      function goToMatch(delta) {
+        if (!currentMatches.length) return;
+        currentMatches[currentMatchIdx]?.classList.remove("is-current-match");
+        currentMatchIdx =
+          (currentMatchIdx + delta + currentMatches.length) %
+          currentMatches.length;
+        const row = currentMatches[currentMatchIdx];
+        row.classList.add("is-current-match");
+        row.scrollIntoView({ block: "start", behavior: "smooth" });
+        refreshMatchUI();
+      }
+
+      el("match-prev").onclick = () => goToMatch(-1);
+      el("match-next").onclick = () => goToMatch(1);
+      el("search").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          goToMatch(e.shiftKey ? -1 : 1);
+        }
+      });
 
       // ── Event extraction ──────────────────────────────────────────
       function extract(rows) {
@@ -830,6 +1087,46 @@
       function fmtTime(ts) {
         if (!ts) return "";
         return new Date(ts).toLocaleTimeString("en-GB", { hour12: false });
+      }
+
+      function escRe(s) {
+        return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+
+      function highlightTokens(root, tokens) {
+        if (!tokens.length) return false;
+        const re = new RegExp(tokens.map(escRe).join("|"), "gi");
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const nodes = [];
+        let n;
+        while ((n = walker.nextNode())) nodes.push(n);
+        let found = false;
+        for (const node of nodes) {
+          const text = node.nodeValue;
+          re.lastIndex = 0;
+          if (!re.test(text)) continue;
+          re.lastIndex = 0;
+          const frag = document.createDocumentFragment();
+          let last = 0;
+          let m;
+          while ((m = re.exec(text))) {
+            if (m.index > last)
+              frag.appendChild(
+                document.createTextNode(text.slice(last, m.index)),
+              );
+            const mark = document.createElement("mark");
+            mark.className = "hl";
+            mark.textContent = m[0];
+            frag.appendChild(mark);
+            last = m.index + m[0].length;
+            if (m[0].length === 0) re.lastIndex++;
+          }
+          if (last < text.length)
+            frag.appendChild(document.createTextNode(text.slice(last)));
+          node.parentNode.replaceChild(frag, node);
+          found = true;
+        }
+        return found;
       }
 
       function esc(s) {
