@@ -13,6 +13,8 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css"
     />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@18.0.3/lib/marked.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/diff@9.0.0/dist/diff.min.js"></script>
     <style>
       *,
       *::before,
@@ -119,15 +121,6 @@
         &:disabled {
           opacity: 0.4;
           cursor: not-allowed;
-        }
-        &::-webkit-search-cancel-button {
-          -webkit-appearance: none;
-          appearance: none;
-          height: 12px;
-          width: 12px;
-          background: #444;
-          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 2 L10 10 M10 2 L2 10' stroke='black' stroke-width='2'/></svg>") center/contain no-repeat;
-          cursor: pointer;
         }
       }
 
@@ -388,10 +381,109 @@
       }
       .cell-assist {
         color: #c0c0c0;
+        white-space: normal;
+        & p {
+          margin: 0.5em 0;
+          &:first-child {
+            margin-top: 0;
+          }
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+        & h1,
+        & h2,
+        & h3,
+        & h4 {
+          margin: 0.8em 0 0.4em;
+          color: #e0e0e0;
+          font-weight: 600;
+        }
+        & h1 {
+          font-size: 16px;
+        }
+        & h2 {
+          font-size: 14px;
+        }
+        & h3,
+        & h4 {
+          font-size: 13px;
+        }
+        & ul,
+        & ol {
+          margin: 0.4em 0;
+          padding-left: 1.6em;
+        }
+        & li {
+          margin: 0.2em 0;
+        }
+        & code {
+          background: #1a1a1a;
+          padding: 1px 5px;
+          border-radius: 2px;
+          font-family: inherit;
+          font-size: 12px;
+          color: #d4a030;
+        }
+        & pre {
+          background: #0a0a0a;
+          border: 1px solid #1e1e1e;
+          padding: 8px 12px;
+          margin: 0.6em 0;
+          overflow-x: auto;
+          & code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+          }
+        }
+        & strong {
+          color: #e8e8e8;
+          font-weight: 600;
+        }
+        & a {
+          color: #5fa8d3;
+        }
+        & blockquote {
+          border-left: 2px solid #2a5580;
+          padding-left: 10px;
+          margin: 0.5em 0;
+          color: #888;
+        }
       }
       .tool-name {
         color: #d4a030;
         font-weight: 600;
+      }
+      .tool-path {
+        color: #888;
+        font-size: 11px;
+        margin-left: 8px;
+      }
+
+      .diff-block {
+        margin-top: 4px;
+        background: #0a0a0a;
+        border: 1px solid #1e1e1e;
+        font-size: 12px;
+        line-height: 1.5;
+        overflow-x: auto;
+        & .diff-line {
+          padding: 0 10px;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+        & .diff-add {
+          background: #0e2a14;
+          color: #80d090;
+        }
+        & .diff-rm {
+          background: #2a0e0e;
+          color: #d08080;
+        }
+        & .diff-ctx {
+          color: #555;
+        }
       }
 
       .json-block {
@@ -464,11 +556,6 @@
           }
         }
       }
-
-      ::view-transition-old(tbody),
-      ::view-transition-new(tbody) {
-        animation-duration: 0.14s;
-      }
     </style>
   </head>
   <body>
@@ -528,10 +615,7 @@
 
     <div id="table-wrap">
       <div id="placeholder">
-        <p>
-          Click <strong>Open tracing folder</strong><br />or drag a
-          <code>tracing/</code> directory here
-        </p>
+        <p id="placeholder-text"></p>
         <p class="hint">Supports .jsonl session files</p>
       </div>
       <table id="tbl" class="hidden">
@@ -564,6 +648,24 @@
       let currentMatchIdx = -1;
 
       const el = (id) => document.getElementById(id);
+
+      const PLACEHOLDER_DEFAULT =
+        "Click <strong>Open tracing folder</strong><br />or drag a <code>tracing/</code> directory here";
+      const PLACEHOLDER_NO_MATCH = "No sessions match your search";
+
+      el("placeholder-text").innerHTML = PLACEHOLDER_DEFAULT;
+
+      marked.use({
+        gfm: true,
+        breaks: true,
+        renderer: {
+          code({ text, lang }) {
+            const language = hljs.getLanguage(lang) ? lang : "plaintext";
+            const code = hljs.highlight(text, { language }).value;
+            return `<pre><code class="hljs language-${language}">${code}</code></pre>`;
+          },
+        },
+      });
 
       const BADGE = {
         user: { label: "USER", badgeCls: "b-user", cellCls: "cell-user" },
@@ -819,9 +921,9 @@
           activeId = null;
           el("tbl").classList.add("hidden");
           el("placeholder").classList.remove("hidden");
-          el("placeholder").querySelector("p").innerHTML = q
-            ? "No sessions match your search"
-            : 'Click <strong>Open tracing folder</strong><br />or drag a <code>tracing/</code> directory here';
+          el("placeholder-text").innerHTML = q
+            ? PLACEHOLDER_NO_MATCH
+            : PLACEHOLDER_DEFAULT;
         } else if (!activeId || !matchIds.has(activeId)) {
           const firstVisible = allIds.find((id) => matchIds.has(id));
           if (firstVisible) selectTab(firstVisible);
@@ -922,12 +1024,9 @@
       }
 
       function updateMatchNav() {
-        currentMatches = Array.from(
-          el("tbody").querySelectorAll("tr.has-hl"),
-        );
+        currentMatches = Array.from(el("tbody").querySelectorAll("tr.has-hl"));
         currentMatchIdx = currentMatches.length ? 0 : -1;
-        for (const r of currentMatches)
-          r.classList.remove("is-current-match");
+        for (const r of currentMatches) r.classList.remove("is-current-match");
         if (currentMatchIdx >= 0)
           currentMatches[0].classList.add("is-current-match");
         refreshMatchUI();
@@ -1021,17 +1120,49 @@
             events.push({
               time: ts,
               ...BADGE.assistant,
-              html: esc(block.text),
+              html: marked.parse(block.text),
             });
           if (block.type === "tool_use") {
-            const summary = `<span class="tool-name">${esc(block.name)}</span>`;
+            const path = block.input?.file_path;
+            const summary =
+              `<span class="tool-name">${esc(block.name)}</span>` +
+              (path ? `<span class="tool-path">${esc(path)}</span>` : "");
+            const body = renderToolInput(block);
             events.push({
               time: ts,
               ...BADGE.tool,
-              html: collapsible(jsonBlock(block.input), summary),
+              html: collapsible(body, summary),
             });
           }
         }
+      }
+
+      function renderToolInput(block) {
+        const input = block.input || {};
+        if (block.name === "Edit" && input.old_string && input.new_string)
+          return renderDiff(input.old_string, input.new_string);
+        if (block.name === "MultiEdit" && Array.isArray(input.edits))
+          return input.edits
+            .map((e) => renderDiff(e.old_string || "", e.new_string || ""))
+            .join("");
+        return jsonBlock(input);
+      }
+
+      function renderDiff(oldStr, newStr) {
+        const parts = Diff.diffLines(oldStr, newStr);
+        let html = '<div class="diff-block">';
+        for (const part of parts) {
+          const cls = part.added
+            ? "diff-add"
+            : part.removed
+              ? "diff-rm"
+              : "diff-ctx";
+          const prefix = part.added ? "+" : part.removed ? "-" : " ";
+          const lines = part.value.replace(/\n$/, "").split("\n");
+          for (const line of lines)
+            html += `<div class="diff-line ${cls}">${prefix} ${esc(line)}</div>`;
+        }
+        return html + "</div>";
       }
 
       function collapsible(body, summaryInner) {
