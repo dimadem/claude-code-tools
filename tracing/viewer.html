@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trace Viewer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: ui-monospace, monospace;
+    font-size: 13px;
+    background: #0f0f0f;
+    color: #d4d4d4;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+    flex-shrink: 0;
+  }
+
+  button {
+    background: #2a2a2a;
+    color: #d4d4d4;
+    border: 1px solid #3a3a3a;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+  }
+  button:hover { background: #333; }
+
+  select {
+    background: #1a1a1a;
+    color: #d4d4d4;
+    border: 1px solid #3a3a3a;
+    padding: 5px 8px;
+    font-family: inherit;
+    font-size: 12px;
+    max-width: 500px;
+  }
+
+  #status { color: #555; font-size: 12px; }
+
+  #table-wrap { flex: 1; overflow: auto; }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    background: #161616;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 7px 12px;
+    text-align: left;
+    color: #666;
+    font-weight: normal;
+    white-space: nowrap;
+  }
+
+  tbody tr { border-bottom: 1px solid #1a1a1a; }
+  tbody tr:hover { background: #141414; }
+
+  td { padding: 7px 12px; vertical-align: top; }
+
+  .time { color: #555; white-space: nowrap; font-size: 11px; padding-top: 9px; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    font-size: 11px;
+    white-space: nowrap;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+
+  .b-user      { background: #0d2a45; color: #5fa8d3; }
+  .b-assistant { background: #1a2a1a; color: #6dba6d; }
+  .b-tool      { background: #2a2000; color: #d4a030; }
+  .b-result    { background: #1a1a2a; color: #8080c0; }
+
+  .cell { line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+
+  .cell-user   { color: #a8d0f0; }
+  .cell-assist { color: #c8c8c8; }
+
+  .tool-name { color: #d4a030; font-weight: 600; display: block; margin-bottom: 6px; }
+
+  .json-block {
+    margin-top: 4px;
+    overflow-x: auto;
+    border-radius: 0;
+  }
+  .json-block pre { margin: 0; }
+  .json-block code { font-family: ui-monospace, monospace; font-size: 12px; }
+
+  .text-block {
+    background: #141414;
+    border: 1px solid #222;
+    padding: 8px 12px;
+    margin-top: 4px;
+    color: #9090b8;
+  }
+
+  #placeholder {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: #333; font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <button id="btn-open">Open tracing folder</button>
+  <select id="sel" style="display:none"></select>
+  <span id="status">No folder selected</span>
+</div>
+
+<div id="table-wrap">
+  <div id="placeholder">Click "Open tracing folder" and select the tracing/ directory</div>
+  <table id="tbl" style="display:none">
+    <thead>
+      <tr>
+        <th style="width:70px">Time</th>
+        <th style="width:90px">Type</th>
+        <th>Content</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+const sessions = {};
+
+document.getElementById('btn-open').onclick = async () => {
+  try {
+    const dir = await window.showDirectoryPicker({ mode: 'read' });
+    await loadDir(dir);
+  } catch (e) {
+    if (e.name !== 'AbortError') console.error(e);
+  }
+};
+
+document.getElementById('sel').onchange = e => render(e.target.value);
+
+async function loadDir(dir) {
+  document.getElementById('status').textContent = 'Loading…';
+  for await (const [name, handle] of dir) {
+    if (handle.kind !== 'file' || !name.endsWith('.jsonl')) continue;
+    const text = await (await handle.getFile()).text();
+    const rows = text.trim().split('\n').flatMap(l => {
+      try { return [JSON.parse(l)]; } catch { return []; }
+    });
+    sessions[name.replace(/\.jsonl$/, '')] = rows;
+  }
+
+  const ids = Object.keys(sessions).sort();
+  if (!ids.length) { document.getElementById('status').textContent = 'No .jsonl files found'; return; }
+
+  const sel = document.getElementById('sel');
+  sel.innerHTML = ids.map(id => {
+    const first = sessions[id].find(r => r.timestamp);
+    const ts = first ? new Date(first.timestamp).toLocaleString() : id;
+    return `<option value="${id}">${ts} — ${id.slice(0, 8)}</option>`;
+  }).join('');
+  sel.style.display = '';
+  document.getElementById('status').textContent = `${ids.length} session(s)`;
+  render(ids[0]);
+}
+
+function render(id) {
+  const rows = sessions[id] || [];
+  const events = extract(rows);
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  events.forEach(ev => {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.className = `cell ${ev.cellCls}`;
+    td.innerHTML = ev.html;
+    tr.innerHTML = `<td class="time">${ev.time}</td><td><span class="badge ${ev.badgeCls}">${ev.label}</span></td>`;
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  });
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('tbl').style.display = '';
+}
+
+function extract(rows) {
+  const events = [];
+
+  for (const row of rows) {
+    const t = row.type;
+    const ts = fmtTime(row.timestamp);
+
+    // User prompt
+    if (t === 'user' && !row.toolUseResult && !row.isMeta && !row.attachment) {
+      const content = row.message?.content;
+      if (!content) continue;
+      const text = typeof content === 'string' ? content
+        : Array.isArray(content) ? content.map(c => c.text || '').join('') : '';
+      const clean = stripSystemTags(text);
+      if (!clean.trim()) continue;
+      events.push({ time: ts, label: 'USER', badgeCls: 'b-user', cellCls: 'cell-user', html: esc(clean) });
+      continue;
+    }
+
+    // Tool result
+    if (t === 'user' && row.toolUseResult) {
+      const r = row.toolUseResult;
+      let html = '';
+      if (typeof r === 'string') {
+        html = renderValue(r);
+      } else if (r.stdout !== undefined || r.stderr !== undefined) {
+        const out = (r.stdout || '').trimEnd();
+        const err = (r.stderr || '').trimEnd();
+        if (out) html += `<div class="text-block">${esc(out)}</div>`;
+        if (err) html += `<div class="text-block" style="color:#c07070">[stderr]\n${esc(err)}</div>`;
+        if (!out && !err) continue;
+      } else if (Array.isArray(r.content)) {
+        const text = r.content.map(c => c.text || '').join('');
+        html = renderValue(text);
+      } else {
+        html = jsonBlock(r);
+      }
+      if (!html) continue;
+      events.push({ time: ts, label: 'RESULT', badgeCls: 'b-result', cellCls: '', html });
+      continue;
+    }
+
+    // Assistant
+    if (t === 'assistant') {
+      const content = row.message?.content;
+      if (!Array.isArray(content)) continue;
+      for (const block of content) {
+        if (block.type === 'text' && block.text?.trim()) {
+          events.push({ time: ts, label: 'ASSISTANT', badgeCls: 'b-assistant', cellCls: 'cell-assist', html: esc(block.text) });
+        }
+        if (block.type === 'tool_use') {
+          const html = `<span class="tool-name">${esc(block.name)}</span>${jsonBlock(block.input)}`;
+          events.push({ time: ts, label: 'TOOL CALL', badgeCls: 'b-tool', cellCls: '', html });
+        }
+      }
+    }
+  }
+
+  return events;
+}
+
+// Render a value: if it looks like JSON, pretty-print it; otherwise plain text block
+function renderValue(s) {
+  s = String(s ?? '').trim();
+  if (!s) return '';
+  if ((s.startsWith('{') || s.startsWith('[')) ) {
+    try { return jsonBlock(JSON.parse(s)); } catch {}
+  }
+  return `<div class="text-block">${esc(s)}</div>`;
+}
+
+function jsonBlock(obj) {
+  const extracted = [];
+
+  function strip(val) {
+    if (typeof val === 'string' && val.includes('\n')) {
+      extracted.push({ text: val });
+      return '…';
+    }
+    if (Array.isArray(val)) return val.map(strip);
+    if (val && typeof val === 'object') {
+      return Object.fromEntries(Object.entries(val).map(([k, v]) => [k, strip(v)]));
+    }
+    return val;
+  }
+
+  const stripped = strip(obj);
+  const code = JSON.stringify(stripped, null, 2);
+  const highlighted = hljs.highlight(code, { language: 'json' }).value;
+
+  const blocks = extracted.map(e =>
+    `<div class="text-block">${esc(e.text)}</div>`
+  ).join('');
+
+  return `<div class="json-block"><pre><code class="hljs language-json">${highlighted}</code></pre></div>${blocks}`;
+}
+
+function stripSystemTags(s) {
+  return s
+    .replace(/<local-command-caveat>[\s\S]*?<\/local-command-caveat>/g, '')
+    .replace(/<command-name>[^<]*<\/command-name>/g, '')
+    .replace(/<command-message>[^<]*<\/command-message>/g, '')
+    .replace(/<command-args>([^<]*)<\/command-args>/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
+function fmtTime(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleTimeString('en-GB', { hour12: false });
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+</script>
+</body>
+</html>

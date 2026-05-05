@@ -28,16 +28,9 @@ Skills for network scanning and analysis via CLI.
 | `nmap-cli` | Discover hosts, scan ports, detect services/OS, run NSE scripts |
 
 ### tracing
-Logs every Claude Code session to JSONL files for debugging and pipeline analysis. Hooks apply automatically on install.
+Copies Claude Code session transcripts into your project for local analysis.
 
-| Hook | What's logged |
-|------|---------------|
-| `SessionStart` / `SessionEnd` | session open/close |
-| `UserPromptSubmit` | user message |
-| `PreToolUse` / `PostToolUse` | tool calls + results |
-| `Stop` | end of Claude's turn |
-
-Output: `~/.claude/tracing/<session_id>.jsonl`
+Run `/tracing` inside any project — creates a `tracing/` folder with session JSONL files and a `viewer.html` to browse them in Chrome.
 
 ## Install
 
