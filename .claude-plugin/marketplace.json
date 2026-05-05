@@ -1,0 +1,13 @@
+{
+  "plugins": [
+    {
+      "name": "subagents",
+      "description": "Skills for delegating tasks to external AI subagents via CLI",
+      "source": {
+        "type": "git",
+        "url": "https://github.com/dimadem/agentic-stuff.git",
+        "directory": "subagents"
+      }
+    }
+  ]
+}
