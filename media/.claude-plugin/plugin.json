@@ -5,9 +5,6 @@
   "author": {
     "name": "Dima Dem"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/dimadem/claude-code-tools.git"
-  },
+  "repository": "https://github.com/dimadem/claude-code-tools.git",
   "license": "MIT"
 }
