@@ -1,7 +1,5 @@
 # claude-code-tools
 
-Personal Claude Code plugin marketplace.
-
 ## Plugins
 
 ### subagents
@@ -34,15 +32,25 @@ Run `/tracing` inside any project — creates a `tracing/` folder with session J
 
 ## Install
 
-**1. Add the marketplace** (once):
+### Option A — `npx skills add` (skills only)
+
+```bash
+npx skills add dimadem/claude-code-tools
+```
+
+---
+
+### Option B — Claude Code marketplace 
+
+**1. Add the marketplace**:
 
 ```bash
 /plugin marketplace add dimadem/claude-code-tools
 ```
 
-**2. Install plugins** (pick what you need):
+**2. Install plugins**:
 
-AI subagents:
+Subagents:
 ```bash
 /plugin install subagents@dimadem-claude-code-tools
 ```
