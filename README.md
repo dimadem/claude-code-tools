@@ -32,7 +32,7 @@ Run `/tracing` inside any project — creates a `tracing/` folder with session J
 
 ## Install
 
-### Option A — `npx skills add` (skills only)
+### Option A — skills only for every cli agent
 
 ```bash
 npx skills add dimadem/claude-code-tools
