@@ -1,6 +1,6 @@
 {
   "name": "network",
-  "description": "Skills for network scanning and analysis via CLI",
+  "description": "network scanning and analysis",
   "version": "1.0.0",
   "author": {
     "name": "Dima Dem"

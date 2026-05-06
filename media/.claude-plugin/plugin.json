@@ -1,6 +1,6 @@
 {
   "name": "media",
-  "description": "Skills for media processing via CLI",
+  "description": "media processing",
   "version": "1.0.0",
   "author": {
     "name": "Dima Dem"

@@ -1,6 +1,6 @@
 {
   "name": "subagents",
-  "description": "Skills for delegating tasks to external AI subagents via CLI",
+  "description": "delegating tasks to external subagents",
   "version": "1.0.0",
   "author": {
     "name": "Dima Dem"

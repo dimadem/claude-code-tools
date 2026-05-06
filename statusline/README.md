@@ -1,6 +1,6 @@
 # statusline
 
-Custom Claude Code status bar — displays model name, context window usage, and rate limits (5h / 7d).
+Claude Code status bar.
 
 ## What it shows
 
@@ -33,7 +33,3 @@ Add to `~/.claude/settings.json`:
 ```
 
 Requires [Bun](https://bun.sh) — `brew install bun`.
-
-## How it works
-
-Claude Code sends a JSON object to the script via stdin after each assistant message. The script reads it, formats the output with ANSI colors, and writes to stdout. Full list of available fields: [statusline docs](https://code.claude.com/docs/en/statusline.md).
