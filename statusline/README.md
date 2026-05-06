@@ -1,7 +1,5 @@
 # statusline
 
-Claude Code status bar.
-
 ## What it shows
 
 ```
