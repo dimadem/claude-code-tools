@@ -1,7 +1,5 @@
 # statusline
 
-## What it shows
-
 ```
 claude-sonnet-4-6 | [████████░░░░░░░░░░░░] 42k | ⌜5h⌟ 12% ⋯ 3h 20m | ⌜7d⌟ 5% ⋯ 2d 4h
 ```
