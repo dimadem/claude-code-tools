@@ -4,12 +4,16 @@
 
 ### subagents
 
+For using these skills install: `brew install --cask codex` (codex-cli), `brew install gemini-cli` (gemini-cli)
+
 | Skill | Description |
 |-------|-------------|
 | `codex-cli` | Run Codex CLI non-interactively to delegate coding, review, or analysis tasks |
 | `gemini-cli` | Run Gemini CLI non-interactively to delegate coding, review, or analysis tasks |
 
 ### media
+
+For using these skills install: `brew install ffmpeg` (ffmpeg-cli), `brew install yt-dlp` (yt-dlp-cli)
 
 | Skill | Description |
 |-------|-------------|
@@ -18,9 +22,12 @@
 
 ### network
 
+For using these skills install: `brew install nmap` (nmap-cli), `brew install --cask wireshark-app` (wireshark-cli)
+
 | Skill | Description |
 |-------|-------------|
 | `nmap-cli` | Discover hosts, scan ports, detect services/OS, run NSE scripts |
+| `wireshark-cli` | Launch the Wireshark GUI from the shell with preset capture, filters, or pcap loaded |
 
 ### tracing
 
