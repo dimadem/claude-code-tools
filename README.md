@@ -4,12 +4,12 @@
 
 ### subagents
 
-For using these skills install: `brew install --cask codex` (codex-cli), `brew install gemini-cli` (gemini-cli)
+For using these skills install: `brew install --cask codex` (codex-cli), Antigravity CLI (agy-cli)
 
 | Skill | Description |
 |-------|-------------|
 | `codex-cli` | Run Codex CLI non-interactively to delegate coding, review, or analysis tasks |
-| `gemini-cli` | Run Gemini CLI non-interactively to delegate coding, review, or analysis tasks |
+| `agy-cli` | Run Antigravity CLI non-interactively to delegate coding, review, or analysis tasks |
 
 ### media
 

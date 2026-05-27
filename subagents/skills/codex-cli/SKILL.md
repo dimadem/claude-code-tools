@@ -8,7 +8,7 @@ Binary: `/opt/homebrew/bin/codex` (verify with `which codex`). Always use the `e
 # Minimal command
 
 ```sh
-codex exec "PROMPT"
+codex exec "PROMPT" </dev/null
 ```
 
 Pipe stdin to provide context (stdin is appended as a `<stdin>` block after the prompt):
@@ -21,10 +21,12 @@ cat file.ts | codex exec -
 Canonical capture for delegated work — final message in a file, exit status from the run:
 
 ```sh
-codex exec -C "$PWD" -o /tmp/codex.out "PROMPT"
+codex exec -C "$PWD" -o /tmp/codex.out "PROMPT" </dev/null
 status=$?    # 0 = success; non-zero = auth/sandbox/runtime failure
 cat /tmp/codex.out
 ```
+
+Always append `</dev/null` unless you're piping context — without a TTY codex blocks on stdin.
 
 Keep stderr by default — auth failures, sandbox denials, and missing-binary errors all surface there. Append `2>/dev/null` only when stderr is known noise.
 
@@ -50,6 +52,6 @@ Other subcommands (`review`, `apply`, `resume`, `mcp`, `cloud`, `doctor`, `sandb
 A codex run can take minutes (more with high reasoning). Don't block the chat:
 
 - **Default — fire and forget**: invoke through `Bash` with `run_in_background: true`. The harness sends one completion notification when the process exits; read the output with `Read` afterwards. Route big final messages to a file with `-o /tmp/codex.out`.
-- **Live progress through `Monitor`**: run with `--json` and pipe through a *selective* filter — every stdout line becomes a notification, so emit only lifecycle/tool-call/error events, never token deltas. Use unbuffered tools (`grep --line-buffered`, `jq --unbuffered`). Sanity-check event shape first: `codex exec --json "ping" | head`.
+- **Live progress through `Monitor`**: run with `--json` and pipe through a *selective* filter — every stdout line becomes a notification, so emit only lifecycle/tool-call/error events, never token deltas. Use unbuffered tools (`grep --line-buffered`, `jq --unbuffered`). Sanity-check event shape first: `codex exec --json "ping" </dev/null | head`.
 
 Don't hard-code a model or reasoning level unless the user asks — defaults from `config.toml` already apply.
