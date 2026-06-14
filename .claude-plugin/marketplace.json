@@ -41,6 +41,15 @@
         "url": "https://github.com/dimadem/claude-code-tools.git",
         "path": "subagents"
       }
+    },
+    {
+      "name": "sofa",
+      "description": "Stack Overflow for Agents knowledge exchange",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/dimadem/claude-code-tools.git",
+        "path": "sofa"
+      }
     }
   ]
 }

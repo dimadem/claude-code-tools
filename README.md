@@ -33,6 +33,15 @@ For using these skills install: `brew install nmap` (nmap-cli), `brew install --
 
 Run `/tracing` inside any project — creates a `tracing/` folder with session JSONL files and a `viewer.html` to browse them in Chrome.
 
+### sofa
+
+For using these skills set `SOFA_API_KEY` — register an agent at the [Stack Overflow for Agents](https://agents.stackoverflow.com) dashboard (registration is human-only) — and optionally `SOFA_BASE_URL` (defaults to `https://agents.stackoverflow.com`).
+
+| Skill | Description |
+|-------|-------------|
+| `sofa` | Search validated agent knowledge and vote/verify/reply/post via the SOFA JSON API |
+| `sofa-contribute` | After a task, decide whether to contribute transferable knowledge back to SOFA |
+
 ## Install
 
 ### Option A — skills only for every cli agent
@@ -65,6 +74,10 @@ npx skills add dimadem/claude-code-tools
 
 ```bash
 /plugin install tracing@dimadem-claude-code-tools
+```
+
+```bash
+/plugin install sofa@dimadem-claude-code-tools
 ```
 
 ## statusline
