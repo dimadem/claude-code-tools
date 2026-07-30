@@ -1,7 +1,7 @@
 {
   "name": "subagents",
   "description": "delegating tasks to external subagents",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": {
     "name": "Dima Dem"
   },

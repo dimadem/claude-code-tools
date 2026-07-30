@@ -3,7 +3,7 @@ name: agy-cli
 description: Run the Antigravity CLI (`agy -p`) non-interactively to delegate a coding, review, or analysis task to a separate model from the shell. Use whenever the user asks to invoke "agy" or "antigravity".
 ---
 
-Binary: `/Users/dima_dem/.local/bin/agy` (verify with `which agy`). Always pass `-p/--print` — bare `agy` opens an interactive TUI that blocks.
+Binary: resolve with `which agy`. `-p/--print` is mandatory; bare `agy` opens a blocking TUI. The flag set is version-dependent — the CLI self-updates, and `agy help` is authoritative.
 
 # Minimal command
 
@@ -11,54 +11,76 @@ Binary: `/Users/dima_dem/.local/bin/agy` (verify with `which agy`). Always pass 
 agy -p "PROMPT"
 ```
 
-Pipe stdin to provide context (stdin is exposed to the model as input):
+Stdin is ignored: no `<stdin>` block, no prompt-from-stdin. Context goes into the prompt string, or into the workspace via `--add-dir`.
 
 ```sh
-git diff | agy -p "Review the diff above"
-cat file.ts | agy -p "Explain the file above"
+agy --add-dir "$PWD" -p "Review the uncommitted changes in this repo"
+agy -p "Review this diff:
+$(git diff)"
 ```
 
-Canonical capture for delegated work — final answer in a file, exit status from the run:
+Canonical capture — no `-o` flag exists; stdout redirection plus the `--output-format json` envelope:
 
 ```sh
-agy --add-dir "$PWD" -p "PROMPT" > /tmp/agy.out
-status=$?    # 0 = success; non-zero = auth/sandbox/runtime failure
-cat /tmp/agy.out
+agy --add-dir "$PWD" --output-format json --print-timeout 30m -p "PROMPT" >/tmp/agy.json 2>/tmp/agy.err
+jq -e '.status == "SUCCESS" and .response != ""' /tmp/agy.json    # the only reliable success test
 ```
 
-There is no `-o`/`--output-file` flag — redirect stdout. There is no `--json` event stream either; only the final text answer is printed.
+Exit status is not that test:
 
-Keep stderr by default — auth failures, sandbox denials, and missing-binary errors all surface there. Append `2>/dev/null` only when stderr is known noise.
+- exit 0, `status: "SUCCESS"`, empty `response` — a tool was auto-denied; the `jetski: ... auto-denied` notice on stderr names the permission.
+- exit 0, `status: "ERROR"` — the run failed, e.g. `--model` combined with `--effort`.
+- exit 1 — `--print-timeout` expired (`Error: timeout waiting for response`), or `--model` is unknown and stderr lists the valid slugs.
 
-# Pick the right knobs
+# Flags
 
-Common flags:
+- `-p, --print` / `--prompt` — one non-interactive run
+- `--output-format text|json|stream-json` — `text` default, `json` envelope, `stream-json` NDJSON events
+- `--json-schema <SCHEMA|FILE>` — structured output, parsed into `structured_output`
+- `--add-dir <DIR>` — directory added to the workspace, repeatable; position relative to `-p` is irrelevant
+- `--print-timeout <DUR>` — response wait, default `5m0s`
+- `--dangerously-skip-permissions` — every tool auto-approved; explicit user consent only
+- `--sandbox` — terminal restrictions
+- `--model <SLUG|"Display Name">` — catalog: `agy models`
+- `--effort low|medium|high` — mutually exclusive with `--model`
+- `--mode accept-edits|plan` — `plan` does not block edits headless
+- `--agent <NAME>` — catalog: `agy agents`
+- `-c, --continue` / `--conversation <ID>` — follow-up turn
+- `--log-file <PATH>` — CLI log location
 
-- `-p, --print` / `--prompt` — non-interactive single-shot mode (mandatory for delegation)
-- `--model <NAME>` — route to a specific model; list options with `agy models`
-- `--print-timeout <DUR>` — response wait for `-p` (default `5m0s`); not a hard kill — a stalled run can outlive it
-- `--add-dir <DIR>` — add a directory to the workspace (repeatable)
-- `--sandbox` — run with terminal restrictions enabled
-- `--dangerously-skip-permissions` — auto-approve every tool prompt; only with explicit user consent
-- `-c, --continue` — continue the most recent conversation
-- `--conversation <ID>` — resume a specific prior conversation by ID
-- `--log-file <PATH>` — override the CLI log file location
+Workspace root is `~/.gemini/antigravity-cli/scratch`, not the shell cwd — project files need `--add-dir "$PWD"`. The `init.cwd` field in `stream-json` reports the shell cwd, not the workspace.
 
-By default `-p` runs in agy's own internal directory (`~/.gemini/antigravity-cli`), **not** the current shell cwd. Pass `--add-dir "$PWD"` (or the specific project path) when the task needs to see project files.
+Permissions: read tools (`list_dir`, `view_file`) run unprompted. Shell commands and edits are auto-denied headless — the run returns an empty `response` and exits 0. Allow-rules live in `~/.gemini/antigravity-cli/settings.json` under `permissions.allow` (e.g. `command(git diff)`); `--dangerously-skip-permissions` approves every tool.
 
-**Flag order matters**: put `--add-dir` (and other flags) *before* `-p`, or use the explicit `=` form. `agy -p "PROMPT" --add-dir DIR` silently drops `--add-dir`; `agy --add-dir DIR -p "PROMPT"` works.
+Model and effort come from that same `settings.json` — leave both unless the user names one. `agy models` lists slugs, most with the effort level baked in (`gemini-3.6-flash-medium`); display names are also accepted. `--model` and `--effort` in one command fail the run with `status: "ERROR"`.
 
-# Safe defaults
+`-i` is `--prompt-interactive`, not an image flag.
 
-- **Read-only review/analysis**: omit `--dangerously-skip-permissions`; supply all context via stdin/prompt. A tool call that needs approval stalls — `-p` has no TTY to approve it.
-- **Repo read or edits**: pass `--dangerously-skip-permissions` (explicit user consent) plus `--add-dir "$PWD"`, else the run hangs on the first tool approval.
-- **Sandboxed run**: add `--sandbox` to bound blast radius; pair with `--dangerously-skip-permissions` for autonomy within limits.
+Follow-up turn: `-c` continues the most recent conversation. `--conversation <ID>` targets the `conversation_id` from the envelope — the required form while several runs are in flight.
 
 # Long-running calls
 
-An agy run can take minutes and is capped by `--print-timeout` (default 5m). Don't block the chat:
+Two limits truncate a delegated run: the `Bash` foreground timeout (120s default, 600s max) and `--print-timeout` (default `5m0s`). Background the call and raise the second:
 
-- **Default — fire and forget**: invoke through `Bash` with `run_in_background: true`. The harness sends one completion notification when the process exits; read the output with `Read` afterwards. Redirect stdout to a file for large results (`agy -p "..." > /tmp/agy.out`). Bump `--print-timeout` if the task may exceed 5 minutes.
-- **No live event stream**: agy doesn't emit `--json` progress events, so `Monitor` only sees the final blob on stdout. If you need intermediate visibility, split the task into smaller `-p` calls instead.
+```sh
+agy --add-dir "$PWD" --output-format json --print-timeout 30m -p "PROMPT" >/tmp/agy-<slug>.json 2>/tmp/agy-<slug>.err
+```
 
-When the prompt depends on stdin, say so explicitly ("Review the diff from stdin"). Don't force `--sandbox` or `--dangerously-skip-permissions` unless the task requires them.
+- `run_in_background: true` — one completion notification on exit.
+- `Read` the `.json` file: `status`, `response`, `usage`, `conversation_id`.
+- `Read` the `.err` file when `response` is empty — the `jetski:` notice names the denied permission.
+- One `<slug>` per call — parallel runs are independent, each with its own `conversation_id`. `TaskStop` cancels one.
+
+Live progress: `Monitor` over `stream-json` through a selective filter, since each stdout line becomes a notification.
+
+```sh
+agy --add-dir "$PWD" --output-format stream-json --print-timeout 30m -p "PROMPT" 2>>/tmp/agy.err | jq -r --unbuffered '
+  if .event=="step_update" and .step_update.step_type=="tool" and .step_update.state!="DONE"
+    then .step_update.state + " " + .step_update.tool_name
+  elif .event=="result" then .result.status + " " + (.result.duration_seconds|tostring) + "s"
+  else empty end'
+```
+
+Tool `state` is `ACTIVE` at start, `ERROR` on an auto-denied tool — the filter keeps both. `ERROR run_command` followed by `SUCCESS` marks a run that finished having done nothing. `agent_response` steps stay out: one `text_delta` per chunk. Stderr stays out of the pipe — non-JSON lines break `jq`.
+
+Events: `init` (`cwd`, `permission_mode`, `tools`) → `step_update` (`step_index`, `state`, `step_type` of `user_input|agent_response|tool|checkpoint|unknown`, `tool_name`, `tool_info{name,parameters,output}`, `text_delta`, `usage`) → `result` (`status`, `response`, `duration_seconds`, `num_turns`, `usage`, `structured_output`). An expired `--print-timeout` lands as a `result` with `status: "ERROR"`.
