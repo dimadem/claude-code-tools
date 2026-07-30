@@ -26,7 +26,7 @@
     },
     {
       "name": "media",
-      "description": "media processing",
+      "description": "audio/video processing and downloading",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/dimadem/claude-code-tools.git",

@@ -17,8 +17,8 @@ For using these skills install: `brew install ffmpeg` (ffmpeg-cli), `brew instal
 
 | Skill | Description |
 |-------|-------------|
-| `ffmpeg-cli` | Transcode, trim, mux, filter, or extract audio/video with ffmpeg |
-| `yt-dlp-cli` | Download or extract media from URLs and playlists with yt-dlp |
+| `ffmpeg-cli` | Transcode, compress, trim, concat, mux, filter, or extract audio/video with ffmpeg |
+| `yt-dlp-cli` | Download video/audio, subtitles, and playlists from URLs with yt-dlp |
 
 ### network
 

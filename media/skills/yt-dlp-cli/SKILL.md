@@ -1,28 +1,42 @@
 ---
 name: yt-dlp-cli
-description: Run yt-dlp from the shell to download or extract media from a URL or playlist. Use whenever the user asks to invoke "yt-dlp".
+description: Run yt-dlp from the shell to download video or audio from a URL, playlist, or channel — YouTube, Twitter/X, TikTok, Vimeo, and ~1800 other sites. Use whenever the user asks to invoke "yt-dlp", to download/save a video, to rip audio or MP3 from a link, or to fetch subtitles, thumbnails, or a playlist.
 ---
 
-Binary: locate with `which yt-dlp` (typical path: `/opt/homebrew/bin/yt-dlp`). Confirm version with `yt-dlp --version`. Companion: `ffmpeg` is required for stream merging, audio extraction (`-x`), remux/recode, embedding, and subtitle conversion — post-processing steps fail at the end of a download when ffmpeg is missing.
+Binary: `which yt-dlp` — `/opt/homebrew/bin/yt-dlp`; install `brew install yt-dlp`. Version: `yt-dlp --version` — extractors break often, a stale binary is the first suspect on any failure. Companion: `ffmpeg` is required for merging, `-x`, remux/recode, section cuts, embedding, subtitle conversion; it runs after the download, so a missing binary fails the job at the end. Post-processing details: `ffmpeg-cli` skill.
 
 # Mental model
 
-Each invocation flows through:
-
 ```
-URL → format selection (-f / -S) → download → post-processing → output template (-o)
+URL → format selection (-f / -S) → download → post-processing → output template (-o / -P)
 ```
 
-- **Selection.** `-f EXPR` filters candidates: `+` merges streams, `/` is a fallback chain (left preferred). `-S SORTORDER` sorts candidates by criteria (`res`, `codec`, `ext`, `size`, `br`, …). The two compose: `-f` narrows the set, `-S` orders it. The built-in default selector is `bv*+ba/b` — best video plus best audio, with combined-stream fallback for sites that don't publish separate streams.
-- **Post-processing pipeline** (each step optional, applied in order): `-x --audio-format` extracts audio → `--remux-video` swaps container without re-encoding → `--recode-video` re-encodes through ffmpeg → `--sponsorblock-remove` cuts segments → `--remove-chapters` cuts chapters → `--split-chapters` splits into files → `--embed-*` writes metadata/subs/thumbnail/chapters/info-json.
-- **Idempotence.** `--download-archive FILE` records every completed entry by `extractor id`; subsequent runs with the same archive skip those entries. `--break-on-existing` halts a playlist on the first archived hit (the typical new-uploads-only sync pattern).
-- **Preset aliases (`-t NAME`)** apply a predefined option bundle and stack with other flags. Built-in names are stable (`mp3`, `aac`, `mp4`, `mkv`, `sleep`); their definitions live in `yt-dlp --help` under the "Preset Aliases" section. `-t mp4` notably includes `--remux-video mp4` plus an `-S` sort favoring H.264/AAC, so it's not just a container choice.
+- `-f EXPR` narrows candidates (`+` merge, `/` fallback chain, `[…]` filter, `*` allow-also); `-S SORTORDER` orders them. Default selector: `bv*+ba/b`.
+- Post-processing order: `-x --audio-format` → `--remux-video` → `--recode-video` → `--sponsorblock-remove` → `--remove-chapters` → `--split-chapters` → `--embed-*`.
+- `--download-archive FILE` records completed entries by `extractor id` and skips them next run; `--break-on-existing` stops a playlist at the first archived hit.
+- `-t NAME` presets (`mp3`, `aac`, `mp4`, `mkv`, `sleep`) expand to option bundles and stack with other flags; definitions in `yt-dlp --help` under "Preset Aliases".
+
+# Agent defaults
+
+Output filenames are not predictable from the command — titles carry emoji, slashes, and length caps that the template rewrites.
+
+```sh
+yt-dlp -P /target/dir -o "%(id)s.%(ext)s" --print after_move:filepath --no-progress --no-warnings "URL"
+```
+
+| Flag | Why |
+|---|---|
+| `--print after_move:filepath` | prints the final absolute path after post-processing and move |
+| `-P DIR` + `-o "%(id)s.%(ext)s"` | directory separate from naming; collision-free and ASCII-safe |
+| `--no-progress --no-warnings` | the `\r` bar and warnings are noise in a captured log |
+| `-i` / `--ignore-errors` | playlist survives a single unavailable entry (`--abort-on-error` = opposite) |
+| `-s` + `-j` | metadata only, no download |
 
 # Minimal command
 
 ```sh
-yt-dlp "URL"                                          # default best video + best audio
-yt-dlp -t mp3 "URL"                                   # extract MP3 via preset
+yt-dlp "URL"                                          # best video + best audio
+yt-dlp -t mp3 "URL"                                   # MP3 via preset
 yt-dlp -t mp4 "URL"                                   # Apple-compatible MP4 via preset
 yt-dlp -f "bv*[height<=1080]+ba/b" -o "%(title)s.%(ext)s" "URL"
 ```
@@ -30,92 +44,87 @@ yt-dlp -f "bv*[height<=1080]+ba/b" -o "%(title)s.%(ext)s" "URL"
 # Knobs by group
 
 Selection & containers:
-- `-f EXPR` — format selector; filter fields include `height`, `width`, `ext`, `vcodec`, `acodec`, `filesize`, `fps`. Operators: `+` merge, `/` fallback, `[…]` filter, `*` allow-also (`bv*` = best video that may also include audio).
-- `-S SORTORDER` — sort by `res`, `codec`, `br`, `size`, `ext`, … (`+size` ascending). `--format-sort-force` overrides extractor-supplied sort.
-- `--merge-output-format FMT` — final container when merging (`mp4`, `mkv`, `webm`).
-- `--remux-video FMT` / `--recode-video FMT` — change container without re-encode / re-encode through ffmpeg.
-- `--prefer-free-formats` — biases selection toward VP9/Opus over H.264/AAC.
-- `-F` — list available formats for this URL.
+- `-f EXPR` — fields: `height`, `width`, `ext`, `vcodec`, `acodec`, `filesize`, `fps`.
+- `-S SORTORDER` — `res`, `codec`, `br`, `size`, `ext`; `+size` ascending; `--format-sort-force` overrides extractor sort.
+- `--merge-output-format FMT` — container when merging (`mp4`, `mkv`, `webm`).
+- `--remux-video FMT` / `--recode-video FMT` — container swap / re-encode through ffmpeg.
+- `--prefer-free-formats` — biases to VP9/Opus. `-F` — list formats.
 
-Audio extraction:
-- `-x` — extract audio track (requires ffmpeg).
-- `--audio-format FMT` — `mp3`, `aac`, `opus`, `flac`, `wav`, `m4a`, `vorbis`.
-- `--audio-quality Q` — VBR `0–9` (lower = better) or CBR like `192k`.
+Audio:
+- `-x` — extract audio (needs ffmpeg).
+- `--audio-format FMT` — `mp3`, `aac`, `opus`, `flac`, `wav`, `m4a`, `vorbis`, `alac`, `aiff`.
+- `--audio-quality Q` — `0` (best) … `10` (worst), default `5`; or a bitrate like `128K`.
 
-Output naming:
-- `-o TEMPLATE` — placeholders are `%(field)s` with optional formatting (`%(upload_date>%Y-%m-%d)s`, `%(playlist_index)03d`).
-- `--restrict-filenames` — ASCII-only, no spaces.
-- `--windows-filenames` — strip characters Windows rejects.
-- `--trim-filenames N` — cap filename length to N chars.
+Output & reporting:
+- `-P [TYPES:]PATH` — `temp:` intermediates, `home:` final files (default).
+- `-o TEMPLATE` — `%(field)s` with formatting: `%(upload_date>%Y-%m-%d)s`, `%(playlist_index)03d`.
+- `-O [WHEN:]TEMPLATE` / `--print-to-file` — field to stdout / appended to a file.
+- `--exec [WHEN:]CMD` — run on the finished file: `--exec after_move:'echo %(filepath)q'`.
+- `--restrict-filenames` ASCII-only · `--windows-filenames` · `--trim-filenames N`.
 
 Playlist & batch:
-- `-I SLICE` — playlist slice (`1:5`, `-3:`, `::2`).
-- `--no-playlist` / `--yes-playlist` — disambiguate when URL is both video and playlist.
-- `--break-on-existing` / `--break-per-input` — early-exit on archived item.
-- `--lazy-playlist` — process entries as the extractor yields them (useful for huge channels).
-- `-a FILE` — read URLs from file, one per line.
-- `--download-archive FILE` — persist completed-entry log.
+- `-I SLICE` — `1:5`, `-3:`, `::2`. `--no-playlist` / `--yes-playlist` — disambiguate.
+- `--break-on-existing` / `--break-per-input` — early exit on archived item.
+- `--lazy-playlist` — stream entries as extracted (large channels). `-a FILE` — URLs from file.
+- `--download-archive FILE` — completed-entry log.
 
 Subtitles:
-- `--write-subs` / `--write-auto-subs` — manual / autogenerated tracks.
-- `--sub-langs "en,ru,en.*"` — comma-separated, supports glob.
-- `--embed-subs` — mux into mp4/mkv/webm.
-- `--convert-subs FMT` — `srt`, `vtt`, `ass`, …
-- `--list-subs` — list what's available.
+- `--write-subs` / `--write-auto-subs` — manual / autogenerated.
+- `--sub-langs "en,ru,en.*"` — comma-separated, glob-capable. `--list-subs` — what exists.
+- `--embed-subs` — mux into mp4/mkv/webm. `--convert-subs FMT` — `srt`, `vtt`, `ass`.
 
 Embedding:
-- `--embed-metadata` / `--embed-chapters` / `--embed-thumbnail` / `--embed-info-json` (last one is MKV-only).
-- `--write-thumbnail` / `--convert-thumbnails jpg` — thumbnail file alongside the media.
+- `--embed-metadata` / `--embed-chapters` / `--embed-thumbnail` / `--embed-info-json` (mkv/mka only).
+- `--write-thumbnail` / `--convert-thumbnails jpg`.
 
 Sectioning:
-- `--download-sections REGEX` — time ranges (`*1:00-2:30`) or chapter-title regex.
-- `--split-chapters` — emit one file per chapter.
-- `--remove-chapters REGEX` — drop chapters by title.
-- `--sponsorblock-mark CATS` / `--sponsorblock-remove CATS` — categories include `sponsor`, `selfpromo`, `intro`, `outro`, `interaction`, `music_offtopic`, `all`, `default`.
+- `--download-sections REGEX` — `*1:00-2:30`, `*10:15-inf`, `*from-url`, or a chapter regex. Needs ffmpeg.
+- `--force-keyframes-at-cuts` — exact boundaries, re-encodes, slow.
+- `--split-chapters` / `--remove-chapters REGEX`.
+- `--sponsorblock-mark CATS` / `--sponsorblock-remove CATS` — `sponsor`, `selfpromo`, `intro`, `outro`, `interaction`, `music_offtopic`, `all`, `default`.
 
-Auth:
-- `--cookies-from-browser BROWSER[+KEYRING][:PROFILE][::CONTAINER]` — supported browsers: `brave`, `chrome`, `chromium`, `edge`, `firefox`, `opera`, `safari`, `vivaldi`, `whale`. On Chrome/Edge macOS the cookie key is fetched through the system Keychain.
-- `--cookies FILE` — Netscape-format cookie jar.
-- `-u USER -p PASS` / `-n` — direct creds / `~/.netrc` lookup.
-
-Network:
-- `--proxy URL` — `http://`, `https://`, `socks5://`.
-- `--impersonate CLIENT[:OS]` — TLS fingerprint impersonation; relies on the `curl_cffi` Python extra. `--list-impersonate-targets` shows what the current build supports (empty list = extra missing).
-- `-N N` — concurrent fragment downloads for DASH/HLS.
-- `-r RATE` — cap download rate. `--throttled-rate RATE` triggers a format reselect when speed drops below the threshold.
-- `--sleep-interval` / `--max-sleep-interval` / `--sleep-requests` — pacing between downloads / requests.
+Auth & network:
+- `--cookies-from-browser BROWSER[+KEYRING][:PROFILE][::CONTAINER]` — `brave`, `chrome`, `chromium`, `edge`, `firefox`, `opera`, `safari`, `vivaldi`, `whale`.
+- `--cookies FILE` Netscape jar · `-u USER -p PASS` · `-n` netrc.
+- `--proxy URL` — `http://`, `https://`, `socks5://`. `--impersonate CLIENT[:OS]` — needs `curl_cffi`.
+- `-N N` concurrent fragments · `-r RATE` cap · `--throttled-rate RATE` reselect on slowdown.
+- `--sleep-interval` / `--max-sleep-interval` / `--sleep-requests` — pacing.
 
 Updates:
-- `-U` / `--update` — check & install.
-- `--update-to CHANNEL@TAG` — pin or downgrade (`stable@2025.10.01`, `nightly`, `master`).
+- `-U` — check and install. `--update-to CHANNEL@TAG` — `stable@2025.10.01`, `nightly`, `master`.
+
+# Recipes
+
+`references/recipes.md` — quality caps, MP3 rips, deterministic output paths, channel sync, sections, subtitles, cookies, batch files, inspection, rate limits, failure recovery.
 
 # Read it locally
 
 ```sh
-yt-dlp --help                              # full reference (~900 lines, grouped by section)
+yt-dlp --help                                   # ~900 lines, grouped
 yt-dlp --help | sed -n '/Preset Aliases:/,$p'   # exact preset definitions
-yt-dlp -F "URL"                            # formats available for a given URL
-yt-dlp --list-subs "URL"                   # subtitle tracks
-yt-dlp --list-thumbnails "URL"             # thumbnail variants
-yt-dlp --list-impersonate-targets          # what --impersonate can take
-yt-dlp -j "URL"                            # full metadata JSON (no download)
+yt-dlp -F "URL"                                 # formats
+yt-dlp --list-subs "URL"
+yt-dlp --list-thumbnails "URL"
+yt-dlp --list-impersonate-targets
+yt-dlp -j "URL"                                 # metadata JSON, no download
 ```
 
 # Long-running calls
 
-Playlists and channels can run for hours. The default progress bar uses `\r`-overwriting on stderr, which renders poorly as line-by-line notifications.
+Playlists and channels run for hours; the default `\r` bar renders poorly as notifications.
 
-- **Fire-and-forget**: `Bash` with `run_in_background: true`, both streams to a log (`yt-dlp ... > /tmp/ytdlp.log 2>&1`). The harness emits one completion notification.
-- **Live progress through `Monitor`**: `--newline` switches the bar to one line per update; `--progress-template "download:%(progress._percent_str)s %(progress.filename)s %(progress._eta_str)s"` (any subset of `progress.*` fields) prints a clean machine-friendly line every `--progress-delta SECONDS`. Pipe stdout into `Monitor`.
+- Fire-and-forget: `Bash` with `run_in_background: true`, both streams to a log (`yt-dlp ... > /tmp/ytdlp.log 2>&1`).
+- Live progress: `--newline` (one line per update) or `--progress-template "download:%(progress._percent_str)s %(progress.filename)s %(progress._eta_str)s"` every `--progress-delta SECONDS`, stdout piped into `Monitor`.
 
 # Gotchas
 
-Behaviors that surprise and aren't obvious from `--help`:
-
-- **`bv*+ba/b` (with trailing `/b`)** is the safe default selector — the fallback covers sites that publish only combined streams. `bv+ba` without it fails outright on those.
-- **`-t mp4` ≠ `--merge-output-format mp4`.** The preset also remuxes and applies `-S vcodec:h264,…,acodec:aac` — the output prefers Apple-compatible codecs. `-t mkv` is plain remux.
-- **ffmpeg dependency is post-hoc.** Any `bv+ba` merge, `-x`, `--remux-video`, `--recode-video`, embedding, or `--convert-subs` invokes ffmpeg after the download finishes; missing ffmpeg leaves the raw streams on disk and exits non-zero.
-- **`--cookies-from-browser chrome` on macOS** reads the cookie key from Keychain and may require the browser to be closed (sqlite database lock). Firefox profiles are usually lock-free.
-- **`--restrict-filenames` is lossy for non-ASCII titles** — Cyrillic/CJK characters are stripped or transliterated.
-- **`--download-archive` keys by `extractor id`**, not URL. The same video accessed through a mirror site is recorded as a separate entry.
-- **Frequent extractor breakage.** "Video unavailable" / 403 / format-not-found often clears with `yt-dlp -U`; if a release regresses, `--update-to nightly` carries unreleased fixes and `--update-to stable@YYYY.MM.DD` pins.
+- `--print` implies `--simulate` on early WHEN stages — `--print filename` prints and downloads nothing. Only late stages (`after_move`, `after_video`) keep the download.
+- `bv*+ba/b` is the safe selector; the trailing `/b` covers sites publishing only combined streams. Bare `bv+ba` fails there.
+- `-t mp4` ≠ `--merge-output-format mp4`: the preset also remuxes and applies `-S vcodec:h264,lang,quality,res,fps,hdr:12,acodec:aac`. `-t mkv` is a plain remux.
+- ffmpeg dependency is post-hoc — merge, `-x`, remux/recode, sections, embedding, `--convert-subs` all run after the download; missing ffmpeg leaves raw streams and exits non-zero.
+- `--download-sections` cuts on keyframes unless `--force-keyframes-at-cuts` is set; boundaries drift by seconds.
+- `--cookies-from-browser chrome` on macOS reads the key from Keychain and may need the browser closed (sqlite lock). Firefox profiles are usually lock-free.
+- `--list-impersonate-targets` always prints a table; targets marked `(unavailable)` are unusable. All-unavailable = `curl_cffi` missing.
+- `--restrict-filenames` strips or transliterates Cyrillic/CJK titles.
+- `--download-archive` keys by `extractor id`, not URL — the same video via a mirror is a separate entry.
+- Extractor breakage is routine: "Video unavailable" / 403 / format-not-found usually clears with `yt-dlp -U`; `--update-to nightly` carries unreleased fixes, `--update-to stable@YYYY.MM.DD` pins.
