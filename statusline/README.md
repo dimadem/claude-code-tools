@@ -1,7 +1,7 @@
 # statusline
 
 ```
-claude-sonnet-4-6 | [████████░░░░░░░░░░░░] 42k | ⌜5h⌟ 12% ⋯ 3h 20m | ⌜7d⌟ 5% ⋯ 2d 4h
+claude-sonnet-4-6 | [████████░░░░░░░░░░░░] 42k | 5h 12% ⋯ 3h 20m | 7d 5% ⋯ 2d 4h
 ```
 
 - **Model name** — current model
@@ -10,13 +10,13 @@ claude-sonnet-4-6 | [████████░░░░░░░░░░░�
 
 ## Install
 
-Copy the script to `~/.claude/`:
+Run the script:
 
 ```bash
 curl --create-dirs -fsSL https://raw.githubusercontent.com/dimadem/claude-code-tools/refs/heads/main/statusline/statusline.ts -o ~/.claude/statusline.ts
 ```
 
-Add to `~/.claude/settings.json`:
+Update `~/.claude/settings.json`:
 
 ```json
 {
