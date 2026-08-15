@@ -13,7 +13,7 @@ claude-sonnet-4-6 | [████████░░░░░░░░░░░�
 Copy the script to `~/.claude/`:
 
 ```bash
-cp statusline/statusline.ts ~/.claude/statusline.ts
+curl --create-dirs -fsSL https://raw.githubusercontent.com/dimadem/claude-code-tools/refs/heads/main/statusline/statusline.ts -o ~/.claude/statusline.ts
 ```
 
 Add to `~/.claude/settings.json`:
