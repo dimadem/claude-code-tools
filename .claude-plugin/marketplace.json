@@ -16,15 +16,6 @@
       }
     },
     {
-      "name": "tracing",
-      "description": "logs Claude Code sessions",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/dimadem/claude-code-tools.git",
-        "path": "tracing"
-      }
-    },
-    {
       "name": "media",
       "description": "audio/video processing and downloading",
       "source": {
@@ -40,15 +31,6 @@
         "source": "git-subdir",
         "url": "https://github.com/dimadem/claude-code-tools.git",
         "path": "subagents"
-      }
-    },
-    {
-      "name": "sofa",
-      "description": "Stack Overflow for Agents knowledge exchange",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/dimadem/claude-code-tools.git",
-        "path": "sofa"
       }
     }
   ]

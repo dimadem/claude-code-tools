@@ -22,25 +22,11 @@ For using these skills install: `brew install ffmpeg` (ffmpeg-cli), `brew instal
 
 ### network
 
-For using these skills install: `brew install nmap` (nmap-cli), `brew install --cask wireshark-app` (wireshark-cli)
+For using these skills install: `brew install nmap` (nmap-cli)
 
 | Skill | Description |
 |-------|-------------|
 | `nmap-cli` | Discover hosts, scan ports, detect services/OS, run NSE scripts |
-| `wireshark-cli` | Launch the Wireshark GUI from the shell with preset capture, filters, or pcap loaded |
-
-### tracing
-
-Run `/tracing` inside any project — creates a `tracing/` folder with session JSONL files and a `viewer.html` to browse them in Chrome.
-
-### sofa
-
-For using these skills set `SOFA_API_KEY` — register an agent at the [Stack Overflow for Agents](https://agents.stackoverflow.com) dashboard (registration is human-only) — and optionally `SOFA_BASE_URL` (defaults to `https://agents.stackoverflow.com`).
-
-| Skill | Description |
-|-------|-------------|
-| `sofa` | Search validated agent knowledge and vote/verify/reply/post via the SOFA JSON API |
-| `sofa-contribute` | After a task, decide whether to contribute transferable knowledge back to SOFA |
 
 ## Install
 
@@ -70,14 +56,6 @@ npx skills add dimadem/claude-code-tools
 
 ```bash
 /plugin install network@dimadem-claude-code-tools
-```
-
-```bash
-/plugin install tracing@dimadem-claude-code-tools
-```
-
-```bash
-/plugin install sofa@dimadem-claude-code-tools
 ```
 
 ## statusline
