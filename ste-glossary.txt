@@ -1,0 +1,7 @@
+# Project glossary for ste-lint.py (--glossary ste-glossary.txt)
+# Technical nouns
+agent, model, prompt, session, conversation, turn, CLI, TUI, command, flag, argument, option, shell, script, file, directory, path
+workspace, project, pane, tab, dialog, screen, output, log, rule, permission, approval, sandbox, hook, timeout, notification
+code review, analysis, subagent, plugin, skill, settings file
+# Technical verbs
+run, install, update, open, close, delete, save, press, type, enter, load

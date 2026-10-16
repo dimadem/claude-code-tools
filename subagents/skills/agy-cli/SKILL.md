@@ -47,16 +47,19 @@ A rule lets a command run when the command starts with the rule text. The argume
        then "\n[" + .step_update.state + " " + (.step_update.tool_name // "") + "]\n"
      elif .event=="step_update" then (.step_update.text_delta // "")
      elif .event=="result" then "\n[" + .result.status + "]\n" else empty end'
+   rc=$?
+   jq -c 'select(.event=="result").result' "$d/events.jsonl" >"$d/out.json"
+   jq -r '.response // empty' "$d/out.json" >"$d/out.md"
+   exit "$rc"
    ```
 
 4. Run the script with `run_in_background: true`: `${CLAUDE_PLUGIN_ROOT}/scripts/herdr-run.sh --label "agy: <task>" "$d"`.
 5. Wait for the task notification. The script shows `pane=` and `rc=`.
-6. Write the result to a file: `jq -c 'select(.event=="result").result' "$d/events.jsonl" >"$d/out.json"`.
-7. Do the steps in "Result check". Then read `.response` in `$d/out.json`.
+6. Do the steps in "Result check". Then read `$d/out.md`.
 
 For two or more code reviews at the same time, use a different `$d` for each agent.
 
-The script sets `$d` and runs `cmd.sh` in your directory with `pipefail`. The pane stays open, and Herdr shows a notification at the end. The script puts a new pane to the right of your pane. If there is a pane to the right of your pane, the script puts the new pane below the last pane in that column.
+The script sets `$d` and runs `cmd.sh` in your directory with `pipefail`. The pane stays open. At the end, the pane shows `$d/out.md` with `bat`, and Herdr shows a notification. The script puts a new pane to the right of your pane. If there is a pane to the right of your pane, the script puts the new pane below the last pane in that column.
 
 # Mode B: task with file changes
 

@@ -36,7 +36,7 @@ For a code review of changes, change `- <"$d/prompt.md"` to `review --base main 
 
 For two or more code reviews at the same time, use a different `$d` for each agent.
 
-The script sets `$d` and runs `cmd.sh` in your directory with `pipefail`. The pane stays open, and Herdr shows a notification at the end. The script puts a new pane to the right of your pane. If there is a pane to the right of your pane, the script puts the new pane below the last pane in that column.
+The script sets `$d` and runs `cmd.sh` in your directory with `pipefail`. The pane stays open. At the end, the pane shows `$d/out.md` with `bat`, and Herdr shows a notification. The script puts a new pane to the right of your pane. If there is a pane to the right of your pane, the script puts the new pane below the last pane in that column.
 
 # Mode B: task with file changes
 

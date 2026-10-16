@@ -32,6 +32,15 @@
         "url": "https://github.com/dimadem/claude-code-tools.git",
         "path": "subagents"
       }
+    },
+    {
+      "name": "writing",
+      "description": "technical writing in ASD-STE100 Simplified Technical English",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/dimadem/claude-code-tools.git",
+        "path": "writing"
+      }
     }
   ]
 }

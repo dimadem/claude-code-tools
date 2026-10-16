@@ -6,6 +6,7 @@
 #   DIR          run directory (create it with mktemp -d); holds cmd.sh, run.sh and rc
 #   COMMAND      shell command; if given, it replaces DIR/cmd.sh
 #                cmd.sh runs in bash with pipefail, in $PWD, with $d exported as DIR
+#                if cmd.sh writes DIR/out.md, the pane shows it at the end (bat, else cat)
 #   --pane-only  make an empty pane by the layout rule and print its ID (Herdr only)
 #
 # Layout rule: the first pane goes to the right of the caller pane; later panes
@@ -81,6 +82,18 @@ export d
 (cd -- "$cwd" && bash -o pipefail "$d/cmd.sh")
 rc=$?
 echo "$rc" >"$d/rc"
+# Show the result file in the pane, formatted for a person to read.
+if [ "$in_herdr" = 1 ] && [ -s "$d/out.md" ]; then
+  echo
+  bat_cmd=$(command -v bat || command -v batcat || true)
+  if [ -n "$bat_cmd" ]; then
+    "$bat_cmd" --paging=never --style=grid,header --italic-text=always --language=markdown \
+      --file-name "result: out.md" "$d/out.md" || cat "$d/out.md"
+  else
+    printf '──── result: out.md ────\n'
+    cat "$d/out.md"
+  fi
+fi
 if [ "$in_herdr" = 1 ]; then
   herdr notification show "$label" --body "exit $rc" --sound done >/dev/null 2>&1 || true
 fi

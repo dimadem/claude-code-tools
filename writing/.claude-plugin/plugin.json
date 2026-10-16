@@ -1,0 +1,11 @@
+{
+  "name": "writing",
+  "description": "technical writing — rewrite documentation, procedures and agent instructions in ASD-STE100 Simplified Technical English, with a linter",
+  "version": "1.0.0",
+  "author": {
+    "name": "Dima Dem"
+  },
+  "repository": "https://github.com/dimadem/claude-code-tools.git",
+  "license": "MIT",
+  "keywords": ["asd-ste100", "simplified-technical-english", "documentation", "technical-writing", "lint"]
+}

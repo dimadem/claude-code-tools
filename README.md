@@ -13,6 +13,14 @@ For using these skills install: `brew install --cask codex` (codex-cli), Antigra
 
 Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`), both skills run the delegated agent in a pane next to yours: a one-shot run that writes its result to a file (`scripts/herdr-run.sh`), or an interactive agent you can watch and approve. `agy-cli/command-rules.json` holds allow rules for usual inspection commands; the skill installs them into `~/.gemini/antigravity-cli/settings.json` only after you agree.
 
+### writing
+
+| Skill | Description |
+|-------|-------------|
+| `ste-writing` | Rewrite documentation, procedures, and agent instructions in ASD-STE100 Simplified Technical English (from any language), with a linter |
+
+The skill has the main rules in short form, not the STE dictionary. Request the official standard at https://www.asd-ste100.org/STE_downloads.html.
+
 ### media
 
 For using these skills install: `brew install ffmpeg` (ffmpeg-cli), `brew install yt-dlp` (yt-dlp-cli)
@@ -54,6 +62,10 @@ npx skills add dimadem/claude-code-tools
 
 ```bash
 /plugin install media@dimadem-claude-code-tools
+```
+
+```bash
+/plugin install writing@dimadem-claude-code-tools
 ```
 
 ```bash
