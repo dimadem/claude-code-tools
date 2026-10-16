@@ -3,5 +3,7 @@
 agent, model, prompt, session, conversation, turn, CLI, TUI, command, flag, argument, option, shell, script, file, directory, path
 workspace, project, pane, tab, dialog, screen, output, log, rule, permission, approval, sandbox, hook, timeout, notification
 code review, analysis, subagent, plugin, skill, settings file
+# Network nouns
+host, target, port, scan, probe, packet, interface, proxy, decoy, firewall, traceroute, timing, operating system
 # Technical verbs
-run, install, update, open, close, delete, save, press, type, enter, load
+run, install, update, open, close, delete, save, press, type, enter, load, scan

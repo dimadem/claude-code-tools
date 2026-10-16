@@ -1,107 +1,141 @@
 ---
 name: nmap-cli
-description: Run nmap from the shell to discover hosts, scan ports, detect services/OS, and run NSE scripts. Use whenever the user asks to invoke "nmap".
+description: Run nmap from the shell to find hosts, scan ports, identify services and operating systems, and run NSE scripts. Use when the user tells you to run "nmap".
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/nmap-summary.sh *)
 ---
 
-Binary: locate with `which nmap` (typical path: `/opt/homebrew/bin/nmap`). Confirm version with `nmap --version`. SYN scans, OS detection, UDP, raw-packet evasion, and `-A` require `sudo` — without root nmap silently downgrades to TCP connect (`-sT`) and skips raw-packet features. NSE scripts and data live under `/opt/homebrew/share/nmap/`; `nmap --script-updatedb` rebuilds the script index after any add/remove. Scanning hosts you do not own or operate is illegal in most jurisdictions; the evasion options assume an authorized engagement.
+Binary: `which nmap` (Homebrew on macOS: `/opt/homebrew/bin/nmap`, Linux: `/usr/bin/nmap`). Version: `nmap --version`.
+
+The NSE scripts and the data files are in `share/nmap/` near the binary (for example `/opt/homebrew/share/nmap/`). After you add or remove a script, run `nmap --script-updatedb`.
+
+Scan only the hosts that you have permission to scan. Use the evasion flags only when you have written permission for the scan.
 
 # Mental model
 
-Each invocation flows through:
+The main stages of a scan:
 
 ```
-targets → host discovery → scan technique → port spec → service/OS detection → NSE → timing → output
+targets → host discovery → port scan → service/OS detection → NSE → output
 ```
 
-- **Defaults without flags.** Top 1000 most common TCP ports (frequency-ordered, not range — a target's interesting port can sit outside the top 1000), `-T3` timing, SYN scan if running as root else TCP connect, ARP-based discovery on local Ethernet (always — even with `-Pn`, ARP still resolves MAC).
-- **Privileged vs unprivileged is the central fork.** Raw sockets are required for `-sS`, `-sU`, `-O`, `-sN/-sF/-sX`, `-sA`, custom packet crafting, and every evasion knob. Unprivileged users get `-sT` and `-b` (FTP bounce) only — nmap downgrades silently rather than erroring.
-- **`-A` is a bundle.** `-A` ≡ `-O -sV -sC --traceroute`. It triples or quadruples scan time on a single host because each component runs against every open port.
-- **Output policy.** `-oA basename` writes Normal, XML, and Grepable in one pass — the typical default for any non-trivial scan. XML is the parseable target; Grepable suits `grep`/`awk`; any of the three can drive `--resume`.
+- Defaults: Without flags, nmap scans the 1000 most common TCP ports with `-T3` timing. Thus an important port can be not in the scan. The sequence of the ports is random.
+- Root: Without root, the default scan is `-sT` (TCP connect). You must have root for `-sS`, `-sU`, `-sA`, `-sN`, `-sF`, `-sX`, `-sO`, `-O` and `-f`. Without root, nmap stops with the error `QUITTING!`.
+- Root and `-A`: Without root, `-A` does not do OS detection and traceroute, and nmap does not show an error.
+- Root and `-D`: Without root, nmap ignores `-D` and shows `These options will not be honored`.
+- Capabilities: If nmap has raw socket access without root (for example, Linux `cap_net_raw`), put `--privileged` before the other flags.
+- `-A`: This flag is the same as `-O -sV -sC --traceroute`. With `-A`, a scan takes much more time.
+- Host discovery: Without root, `-sn` sends TCP connect probes to ports 80 and 443. With root on a local Ethernet network, nmap uses ARP, also with `-Pn`. To stop ARP, use `--disable-arp-ping`.
+- Output: `-oA <basename>` writes the normal, XML and grepable output in one scan. `-oX -` writes XML to stdout. Use XML as input for a script.
 
 # Minimal command
 
 ```sh
 nmap target                                      # default: top 1000 TCP, T3
 sudo nmap -sS -sV -O target                      # SYN + service version + OS (root)
-nmap -sn 192.168.1.0/24                          # LAN host discovery (uses ARP)
+sudo nmap -sn 192.168.1.0/24                     # LAN host discovery (ARP with root)
 sudo nmap -A -p- -oA scan_results target         # full audit, all ports, three output files
+nmap -n -p 22,443 -oX - target | ${CLAUDE_PLUGIN_ROOT}/scripts/nmap-summary.sh -
 ```
 
-# Knobs by group
+# Scripts
+
+- `${CLAUDE_PLUGIN_ROOT}/scripts/nmap-summary.sh FILE.xml`: Show a short summary of the XML output. The summary has one line for each port, the OS and the NSE output. Use `-` for stdin. Use it in place of the normal output.
+- `--all`: Show also the ports with the state `closed` or `filtered`.
+- `--lines N`: Show a maximum of N lines for each NSE script. The default is 5. `0` gives no NSE output.
+- `--json`: Show the same data as JSON. Use it with `jq` to filter many hosts. To show a table in `nu`, pipe the JSON to `nu --stdin -c 'from json | get hosts | each {|h| $h.ports | insert addr $h.addr} | flatten | select addr port proto state service version'`.
+- `${CLAUDE_PLUGIN_ROOT}/scripts/nmap-run.sh -- NMAP_ARGS`: Run a long scan. The script adds `--noninteractive`, `--stats-every 30s` and `-oA DIR/scan`. At the end, it shows the summary and `rc=`.
+- `--sudo`: Run nmap with `sudo -n`. If sudo must have a password, the script stops. Then tell the user to type `! sudo -v`.
+- `--dir DIR`, `--stats TIME`: Set the directory and the time between status lines. Do not add `-o` flags to `NMAP_ARGS`.
+
+# Flags by group
 
 Targets:
-- `-iL FILE` — read targets from file. `-iR N` — N random Internet targets. `-sL` — list-only (no probes sent, dry-run).
-- `--exclude HOSTS` / `--excludefile FILE` — skip hosts. `--exclude-ports RANGE` — skip ports.
-- `-6` — IPv6 (syntax otherwise unchanged).
+- `-iL FILE`: Read the targets from a file. nmap also scans the targets on the command line.
+- `-n -sL`: Show the list of targets. nmap does not send packets to the targets. Without `-n`, nmap does reverse DNS.
+- `--exclude HOSTS`, `--excludefile FILE`: Do not scan these hosts.
+- `--exclude-ports RANGE`: Do not scan these ports.
+- `--resolve-all`: Scan all addresses of a hostname. The default is the first address only.
+- `-6`: Scan IPv6 addresses. The syntax of the other flags does not change.
 
-Discovery:
-- `-sn` — host discovery without port scan.
-- `-Pn` — skip discovery, treat every host as up (off hosts still get a full port scan; pays off when targets filter ICMP, costs heavily on populated subnets).
-- `-PS[ports]` / `-PA` / `-PU` / `-PE` / `-PP` / `-PM` — TCP SYN/ACK, UDP, ICMP echo/timestamp/netmask probes.
-- `-n` / `-R` — never / always reverse-DNS. `--traceroute` — path tracing.
-- `--disable-arp-ping` — opt out of automatic ARP on local Ethernet.
+Host discovery:
+- `-sn`: Find the hosts that are up. Do not scan ports.
+- `-Pn`: Do not do host discovery. nmap scans each target as a host that is up. Use it when the targets block ICMP. On a large network with few hosts, the scan is very slow.
+- `-PS[ports]`, `-PA`, `-PU`, `-PE`, `-PP`, `-PM`: Send TCP SYN, TCP ACK, UDP, ICMP echo, timestamp or netmask probes.
+- `-n`, `-R`: Never or always do reverse DNS.
+- `--traceroute`: Find the path to each host.
+- `--discovery-ignore-rst`: Ignore RST replies. Use it when a firewall sends RST for each address.
 
 Scan technique:
-- `-sS` (TCP SYN, half-open) / `-sT` (TCP connect, completes handshake) / `-sU` (UDP — kernel-rate-limited at the target side, ≈1 ICMP-unreachable/sec on Linux; pair with `--top-ports 20` or explicit `-p`).
-- `-sA` (TCP ACK — distinguishes filtered from unfiltered, never reports open).
-- `-sN` / `-sF` / `-sX` (Null / FIN / Xmas — stealth, OS-dependent reliability). `-sO` — IP protocol scan.
+- `-sS`: TCP SYN scan. nmap does not open the full TCP connection.
+- `-sT`: TCP connect scan. nmap opens the full TCP connection.
+- `-sU`: UDP scan. Many hosts send a small number of ICMP port unreachable messages each second, thus a UDP scan is slow. Use it with `--top-ports 20` or `-p`.
+- `-sA`: TCP ACK scan. It shows the port state `filtered` or `unfiltered`. It does not show the state `open`.
+- `-sN`, `-sF`, `-sX`: TCP Null, FIN and Xmas scans. The result is different for each operating system.
 
 Ports:
-- `-p RANGE` — `22,80,443`, `1-1024`, `U:53,T:80` (mixed protocols).
-- `-p-` — all 65535. `-F` — top 100. `--top-ports N` — top N most common.
+- `-p RANGE`: For example `22,80,443` or `1-1024`.
+- `-sU -sS -p U:53,T:80`: Scan UDP and TCP ports in one scan. The prefixes `U:` and `T:` do not start a UDP or TCP scan.
+- `-p-`: All 65535 ports.
+- `-F`: The 100 most common ports.
+- `--top-ports N`: The N most common ports.
+- `-r`: Scan the ports in sequence.
 
 Detection:
-- `-sV` — service/version probes (`--version-intensity 0–9`, `--version-light`, `--version-all`).
-- `-O` — OS fingerprint (`--osscan-guess` aggressive, `--osscan-limit` skip unlikely targets).
-- `-A` — `-O -sV -sC --traceroute` bundle.
+- `-sV`: Find the service and version on each open port. `--version-intensity 0-9` sets which probes nmap sends. A high value sends also the rare probes. `--version-light` is 2, `--version-all` is 9.
+- `-O`: Find the operating system. `--osscan-guess` gives more guesses. `--osscan-limit` examines only the hosts with one or more open and closed TCP ports.
 
 NSE:
-- `-sC` — `--script=default`.
-- `--script=<list>` — comma-separated files, paths, or categories: `default`, `safe`, `discovery`, `vuln`, `auth`, `brute`, `intrusive`, `exploit`, `dos`, `malware`, `broadcast`. `vuln` runs ~100 scripts per host — tens of minutes on default timing.
-- `--script-args=k=v,…` / `--script-args-file=FILE`.
-- `--script-trace` — log every script's network exchange.
+- `-sC`: The same as `--script=default`.
+- `--script=<list>`: Run scripts. The list contains files, directories, categories or expressions, for example `"default and safe"`.
+- Main categories: `default`, `safe`, `discovery`, `version`, `vuln`, `auth`, `brute`, `intrusive`, `exploit`, `dos`, `external`, `broadcast`. Scripts in `external` send data to external services.
+- `vuln`: This category has approximately 100 scripts. Set `--script-timeout` for these scripts.
+- `--script-args=k=v,...`, `--script-args-file=FILE`: Give arguments to the scripts.
+- `--script-trace`: Show all data that the scripts send and receive.
+- `--script-timeout TIME`: Stop each script after this time. `0` gives no limit.
 
-Timing & performance:
-- `-T0…-T5` — paranoid (5 min between probes) → insane (may miss ports). Default `-T3`. `-T4` is usually safe on reliable networks.
-- `--min-rate N` / `--max-rate N` — pps floor/ceiling.
-- `--host-timeout TIME` — abandon a target after duration. `--max-retries N` — retransmission cap.
-- `--scan-delay TIME` / `--max-scan-delay TIME` — per-probe pacing (different axis from `-T`).
-- `--min-hostgroup N` / `--max-hostgroup N` — parallel host group sizes.
+Timing and performance:
+- `TIME`: A number of seconds, or a number with `ms`, `s`, `m` or `h`, for example `30m`.
+- `-T0` to `-T5`: The timing template. `-T0` waits 5 minutes between probes. `-T5` can miss ports. The default is `-T3`. On a reliable network, `-T4` is usually safe.
+- `--min-rate N`, `--max-rate N`: The minimum and maximum number of packets each second.
+- `--host-timeout TIME`: Stop the scan of a host after this time.
+- `--max-retries N`: The maximum number of retransmissions for a probe.
+- `--scan-delay TIME`, `--max-scan-delay TIME`: The minimum and maximum delay between probes. These flags change the values from `-T`.
+- `--min-hostgroup N`, `--max-hostgroup N`: The number of hosts that nmap scans at the same time.
+- `--defeat-icmp-ratelimit`: Make a UDP scan faster. A port that does not send a reply shows as `closed|filtered`, thus the result is less accurate.
 
-Evasion (assumes authorized engagement):
-- `-f` / `--mtu N` — fragment packets.
-- `-D decoy1,decoy2,ME,…` — cloak with decoy sources (`RND:5,ME` mixes 5 random plus self).
-- `-S IP` — spoof source. `-e IFACE` — pin egress interface.
-- `-g PORT` / `--source-port PORT` — fixed source port (e.g. `53`).
-- `--proxies socks4://host:port,…` — relay (TCP only).
-- `--spoof-mac MAC|prefix|vendor` — MAC override.
-- `--data <hex>` / `--data-string <ascii>` / `--data-length N` — pad/inject packet payload.
-- `--ttl N` / `--ip-options OPTS` / `--badsum` — packet header tweaks.
+Evasion (only with written permission):
+- `-f`, `--mtu N`: Send fragmented packets. `N` is a multiple of 8.
+- `-D decoy1,decoy2,ME`: Add decoy source addresses. `RND:5,ME` adds 5 random addresses and your address.
+- `-S IP`: Use a different source address.
+- `-e IFACE`: Send packets through this interface.
+- `-g PORT`, `--source-port PORT`: Use this source port, for example `53`.
+- `--proxies socks4://host:port,...`: Send the connections through HTTP or SOCKS4 proxies. Only `-sV` and NSE use the proxies. Host discovery, the port scan and OS detection do not use the proxies, thus they show your real address.
+- `--spoof-mac MAC|prefix|vendor`: Use a different MAC address.
 
 Output:
-- `-oN file` / `-oX file` / `-oG file` / `-oA basename` — Normal / XML / Grepable / all three.
-- `--open` — only ports in open or possibly-open states.
-- `--reason` — show why a port is in its state (`syn-ack`, `no-response`, `host-unreach`).
-- `-v` / `-vv` — verbosity. `-d` / `-dd` — debug.
-- `--packet-trace` — log every probe sent/received.
-- `--resume FILE` — continue an aborted scan from any of `-oN`/`-oG`/`-oX` output files.
+- `-oN file`, `-oX file`, `-oG file`, `-oA basename`: Normal, XML, grepable or all three formats. Use `-` as the file name for stdout.
+- `--append-output`: Add the results to the end of the output files. Without this flag, nmap writes over the files. An XML file with added results is not correct XML.
+- `--open`: Show only the ports with the state `open`, `open|filtered` or `unfiltered`. nmap does not show the hosts without these ports.
+- `--reason`: Show why a port has its state, for example `syn-ack` or `conn-refused`.
+- `-v`, `-vv`: More output. `-d`, `-dd`: Debug output.
+- `--packet-trace`: Show each packet that nmap sends and receives.
 
 # Read it locally
 
 ```sh
 nmap --help                                  # one-page summary
-man nmap                                     # comprehensive (≈3000 lines)
-nmap --script-help "vuln"                    # contents of a category
+man nmap                                     # full manual (≈3000 lines)
+nmap --script-help "vuln"                    # scripts in a category
 nmap --script-help ssl-enum-ciphers          # what one script does
 nmap --iflist                                # interfaces and routes nmap will use
-ls /opt/homebrew/share/nmap/scripts | wc -l  # NSE scripts available locally
+ls /opt/homebrew/share/nmap/scripts/*.nse | wc -l   # NSE scripts available locally
 ```
 
-# Long-running calls
+# Long scans
 
-Full-port scans, `/24` networks with `-A`, or `--script=vuln` runs take tens of minutes to hours. nmap has no signal-based status; status comes from the terminal or the periodic flag.
+A full port scan can run for hours. A scan with `-A` on a `/24` network or with `--script=vuln` can also run for hours. When nmap gets a signal, it does not show its status.
 
-- **Foreground status keys** — any keypress during a scan prints a `Stats:` line with elapsed time, hosts completed, percent done, and ETC. Letter keys also adjust output: `v`/`V` verbosity, `d`/`D` debug, `p`/`P` packet trace, `?` shows the runtime help.
-- **Fire-and-forget** — `Bash` with `run_in_background: true`, plus `--noninteractive` so nmap doesn't try to attach to the absent terminal. Add `--stats-every 30s` so the log file gets a status line every interval. Redirect both streams (`nmap … > /tmp/nmap.log 2>&1`).
-- **Resume** — `nmap --resume <output-file>` continues an aborted scan from the saved Normal, Grepable, or XML output; the original command line is recorded in the file header, so no other arguments are passed.
-
+- Terminal: When you press a key in the terminal, nmap shows a `Stats:` line with the time, the percent done and the ETC. The keys `v`/`V`, `d`/`D` and `p`/`P` change the verbosity, the debug level and the packet trace. The `?` key shows the help.
+- Background: Run `nmap-run.sh` with `run_in_background: true`. The first lines show `dir=DIR` and `pid=PID`. To stop the scan, run `kill PID`. A background scan ignores SIGINT. To see the progress, read the last lines of `DIR/log`. To see the open ports before the end, run `nmap-summary.sh DIR/scan.xml`.
+- Resume: `nmap --resume <output-file>` continues a scan that stopped. Use the normal, grepable or XML output file, for example `DIR/scan.gnmap`. The output file contains the command line of the scan. Thus, do not add other flags. nmap starts again from the first host without a full result.
+- NSE limits: nmap stops a script thread that runs for more than 5 seconds without a yield to the NSE engine. A script that uses more than 400 MB of memory gets an error.
