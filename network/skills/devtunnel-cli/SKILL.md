@@ -1,98 +1,133 @@
 ---
 name: devtunnel-cli
-description: Run Microsoft Dev Tunnels from the shell to expose a local port on a public/private URL, manage persistent tunnels, control access, and connect remote ports back to localhost. Use whenever the user asks to invoke "devtunnel".
+description: Run Microsoft Dev Tunnels (devtunnel) from the shell to share a local port through a public or private URL, keep a tunnel with a permanent URL, control access, and connect remote ports to localhost. Use when the user tells you to run "devtunnel". Also use it when the user tells you to share a local dev server, to get a URL for localhost or to receive webhooks on localhost.
 ---
 
-Binary: locate with `which devtunnel` (typical path: `/opt/homebrew/bin/devtunnel`). Confirm version with `devtunnel --version` — it also prints the bound service cluster (e.g. `euw`) and ToS/privacy notice. **A tunnel is a server-side object, not a process**: `devtunnel create` allocates a persistent tunnel in Microsoft's cloud (`global.rel.tunnels.api.visualstudio.com`) that survives after the CLI exits; `devtunnel host` is the process that pumps your local port through it. Almost everything requires login — `devtunnel user login` (browser by default; `-d` device-code over SSH, `-g` GitHub). Tokens and the default-tunnel pointer live under `~/Library/Application Support/DevTunnels/` on macOS (`devtunnels.json` = default tunnel + cluster; `devtunnels-tokens*` = cached auth). A logged-out CLI fails with "Login token expired"; the only no-login path is `-t/--access-token` (a scoped tunnel token) or hosting an `--allow-anonymous` tunnel you already own.
+Binary: `which devtunnel` (Homebrew on macOS: `brew install --cask devtunnel`). `devtunnel --version` shows the CLI version, the service URI and the cluster.
+
+A tunnel is an object on the Microsoft service, not a process. `devtunnel create` makes the tunnel. The tunnel stays after the CLI stops. `devtunnel host` is the process that sends the traffic between the tunnel and the local port.
 
 # Mental model
 
-Each invocation flows through:
+The main stages:
 
 ```
-login (or -t token) → tunnel object (create/host) → ports → access-control entries → host process ⇄ service ⇄ client (browser URL or `connect`)
+login → tunnel (create or host) → ports → access control entries → host process ⇄ local service ⇄ client (URL or connect)
 ```
 
-- **Defaults without flags.** No tunnel exists until you `create` or `host`. A fresh tunnel is **private** — only the owner's account can connect; nothing is public until you add an anonymous access rule. Port protocol defaults to `auto` (HTTP/HTTPS auto-detected). The CLI binds to the nearest service cluster automatically (`devtunnel clusters` lists all; `*` marks current). Web requests have their `Host` header rewritten to `localhost` and `Origin` to `http(s)://localhost` unless you pass `unchanged`.
-- **Two central forks.** (1) *Ephemeral vs persistent*: `devtunnel host -p 3000` creates a throwaway tunnel inline and tears nothing down on its own (the object lingers server-side until expiration/delete); `create` + `port create` + `host <id>` is the reusable path where the same stable URL comes back every run. (2) *Host vs connect*: `host` pushes your local port **out**; `connect` pulls a remote tunnel's port **back in** as a local listener — the way to reach non-HTTP services (SSH, databases, raw TCP) that a browser URL can't.
-- **Access is layered, ordered, and inheritable.** Access-control entries (ACEs) attach to the tunnel or to a single port (`-p`). Rules are evaluated in order (`-i` inserts at an index); a `--deny` rule can shadow a later allow. Anonymous (`-a`), whole Entra tenant (`--tenant`), GitHub org (`--org`), or repo-access-based (`-r owner/repo`) are the audiences. ACEs can themselves expire (`-e 1h`…`30d`).
-- **Output policy.** Almost every command takes `-j/--json` for machine-readable output — use it whenever parsing IDs, URLs, or port lists. The human table from `host` prints both the public connect URL (`https://<id>-<port>.<cluster>.devtunnels.ms`) and an inspect URL; `port list -j` / `show -j` are the reliable way to extract those programmatically.
+- Login: Almost all commands must have a login. `devtunnel user login` opens a browser. The agent cannot do this step. When the login token expires, the commands show `Login token expired.`
+- Private: A new tunnel is private. Only the account of the owner can open the URL. A client without a login gets HTTP 302 to a login page.
+- Anonymous: `-a` lets all persons with the URL open it. Get approval from the user before you make an anonymous tunnel.
+- Ephemeral and persistent: `devtunnel host -p 3000` makes a new tunnel with a random ID. `create` + `port create` + `host ID` gives a tunnel with a permanent URL.
+- Host and connect: `host` sends a local port to the tunnel. `connect` makes a local port for a remote tunnel. Use `connect` for SSH, databases and other TCP services.
+- Tunnel ID: The full ID has the cluster, for example `my-api.asse`. If you do not give an ID, the CLI uses the last tunnel that you used.
+- Headers: For HTTP traffic, the tunnel changes the `Host` header to `localhost` and the `Origin` header to `http(s)://localhost`. To keep the headers, use `--host-header unchanged` and `--origin-header unchanged`.
+- JSON: Most commands have `-j`. `host` and `connect` do not have `-j`. The URLs are in `devtunnel show ID -j`, in `tunnel.ports[].portUri`. `port list -j` does not show the URLs. Sometimes the CLI writes `Welcome to dev tunnels!` and the version before the JSON. Thus remove the lines before the first `{`, for example with `sed -n '/^{/,$p'`.
+
+# Procedure
+
+1. Run `devtunnel user show`. If it shows `Login token expired.` or `Login required.`, tell the user to type `! devtunnel user login -g` (GitHub) or `! devtunnel user login` (Microsoft).
+2. To share a port one time, run `devtunnel-up.sh PORT`. The tunnel expires after 1 day.
+3. If the user must have the same URL each time, run `devtunnel-up.sh --name ID PORT`.
+4. Give the `url=` lines to the user.
+5. To test a private URL, use a connect token (see "Test a private URL").
+6. When the user does not need the tunnel, run `devtunnel-down.sh DIR`. Add `--delete` for a tunnel without `--name`.
+
+# Scripts
+
+`host` and `connect` do not stop. Thus use these scripts. They start the host in the background and return when the URLs are ready.
+
+`${CLAUDE_PLUGIN_ROOT}/scripts/devtunnel-up.sh [PORT...]`: Start a host for the local ports. The script shows `dir=`, `pid=`, `tunnel=` and one `url=PORT URI` line for each port. Then it stops, and the host continues in the background. If the start fails, the script stops the host and deletes a tunnel that it made.
+
+Flags of `devtunnel-up.sh`:
+- `--name ID`: Use a persistent tunnel. If the tunnel or a port does not exist, the script makes it. The URL does not change.
+- `--anon`: Make a new tunnel anonymous. For a tunnel that exists, use `devtunnel access create ID -a`.
+- `--expire TIME`: The expiration of a new tunnel, for example `2h` or `7d`. The default is `1d`.
+- `--dir DIR`: The directory for `host.log`, `pid` and `tunnel`. The default is a new temporary directory. If the host of a directory did not stop, the script gives an error.
+- `--timeout SEC`: The maximum time to wait for the host. The default is 30.
+
+`${CLAUDE_PLUGIN_ROOT}/scripts/devtunnel-down.sh [--delete] DIR`: Stop the host. `--delete` also deletes the tunnel. Without `--delete`, the tunnel and its URL stay until the expiration. You can run `--delete` after the host stopped.
 
 # Minimal command
 
 ```sh
-devtunnel user login                              # one-time browser login
-devtunnel host -p 3000                            # private tunnel for localhost:3000 (login required to reach)
-devtunnel host -p 3000 -a                         # anonymous: anyone with the URL can reach it
-devtunnel host -p 3000 -p 5000 -p 8080            # multiple local ports through one tunnel
-devtunnel connect <id>                            # pull a tunnel's ports back as local listeners
+devtunnel user show                                # login status
+${CLAUDE_PLUGIN_ROOT}/scripts/devtunnel-up.sh 3000 # one-time private URL for localhost:3000
+${CLAUDE_PLUGIN_ROOT}/scripts/devtunnel-up.sh --name my-api 3000 5000   # permanent URLs
+${CLAUDE_PLUGIN_ROOT}/scripts/devtunnel-down.sh --delete DIR            # stop and delete
+devtunnel list -j                                  # all tunnels of the account
 ```
 
-Reusable named tunnel:
+Persistent tunnel without the scripts:
 
 ```sh
-devtunnel create my-api -a -e 7d                  # persistent tunnel, anonymous, 7-day expiry
-devtunnel port create my-api -p 3000              # register a port on it
-devtunnel host my-api                             # host whenever you want; same URL returns
+devtunnel create my-api -e 7d                      # private tunnel, 7-day expiration
+devtunnel port create my-api -p 3000               # add a port
+devtunnel host my-api                              # host it; the URL is the same each time
 ```
 
-# Knobs by group
+# Test a private URL
 
-Auth (`devtunnel user …` + global `-t`):
-- `user login` — `-b` browser (default), `-d` device-code (headless/SSH), `-e` Entra/Microsoft (default), `-g` GitHub. Service principal: `--sp-tenant-id/--sp-client-id` + `--sp-secret` or `--sp-certificate-file`. Azure Managed Identity: `--mi-client-id/--mi-object-id/--mi-resource-id`. Federated OIDC: `--federated-token`.
-- `user show` / `user logout`.
-- `-t, --access-token <token>` — present on nearly every command; authenticate with a scoped tunnel token instead of a user login (`-` reads from stdin). Mint with `devtunnel token`.
+```sh
+tok=$(devtunnel token ID --scope connect -j | sed -n '/^{/,$p' | jq -r .token)
+curl -H "X-Tunnel-Authorization: tunnel $tok" https://<id>-<port>.<cluster>.devtunnels.ms/
+```
 
-Tunnel lifecycle:
-- `create [<id>]` — `-a` anonymous, `-r owner/repo` repo-gated, `-e 2h|7d` expiration, `-d` description, `-l` space-separated labels, `--request-timeout SEC` (0=disabled), `--host-header/--origin-header` (`unchanged` keeps original). ID is random if omitted.
-- `host [<id>]` — same flags as create **plus** `-p/--port-numbers` (repeatable: `-p 3000 -p 5000`) and `--protocol http|https|auto`. No `<id>` → creates a new tunnel inline.
-- `update [<id>]` — change `-d`, `-e`, headers, `--request-timeout`, and `--add-labels`/`--remove-labels`.
-- `list` — `-l` filter by any label, `--all-labels` by all, `--limit N`, `-j`.
-- `show <id>` / `delete <id>` / `delete-all`.
-- `set <id>` / `unset` — set/clear the default tunnel so `<id>` can be omitted elsewhere.
+A token is a credential. Write it to a file or into the conversation only when the user tells you to do it.
 
-Ports (`devtunnel port …`):
-- `create <id> -p N` (REQUIRED port) — `--protocol`, `-d`, `-l`, header rewrites, `--request-timeout`.
-- `update <id> -p N` — `-d`, `--add-labels`/`--remove-labels`, headers, timeout.
-- `list <id>` / `show <id>` / `delete <id> -p N`.
+# Commands by group
 
-Access control (`devtunnel access …`):
-- `create <id>` — audience: `-a` anonymous, `--tenant` current Entra tenant, `--org NAME` GitHub org, `-r owner/repo` repo-access. `-p N` scopes the rule to one port. `-d/--deny` makes it a deny rule. `-e 1h…30d` expiry. `--scopes connect|host|inspect…` (default `connect`). `-i INDEX` inserts at a position (rules are ordered).
-- `list <id>` / `delete <id>` / `reset <id>` (back to private default).
+Login (`devtunnel user ...`):
+- `user login`: `-b` browser (default), `-d` device code (for SSH), `-e` Entra or Microsoft account (default), `-g` GitHub. There are also flags for a service principal (`--sp-*`), a managed identity (`--mi-*`) and a federated token (`--federated-token`).
+- `user show`, `user logout`: Show the login status, or log out.
+- `-t, --access-token TOKEN`: Use a tunnel token in place of the login. `-` reads the token from stdin. Most commands have this flag.
 
-Tokens & scopes:
-- `token <id> --scope <s>` (REQUIRED) — one or more of `create manage manage:ports host inspect connect`. Issues a tunnel token to hand off hosting/connecting without sharing your account. Pair with `-t -` on the consuming command to pipe via stdin.
+Tunnels:
+- `create [ID]`: `-a` anonymous, `-r owner/repo` access for the users of a repository, `-e 2h|7d` expiration. Other flags: `-d` description, `-l` labels (with spaces between them), `--request-timeout SEC` (`0` gives no limit), `--host-header`, `--origin-header`. Without `ID`, the ID is random.
+- `host [ID]`: `-p PORT` (one or more times), `--protocol http|https|auto`, `-a`, `-e`, `-d`, `-l`, `-r`, `--host-header`, `--origin-header`. Without `ID`, `host` makes a new tunnel. With the ID of a tunnel that exists, `-p` gives an error. Add the ports with `port create`.
+- `update [ID]`: Change `-d`, `-e`, the headers, `--request-timeout`, `--add-labels` and `--remove-labels`.
+- `list`: `-l` labels (one or more), `--all-labels` (all), `--limit N`, `-j`.
+- `show [ID]`, `delete [ID]`, `delete-all`: `-f` deletes without a question.
+- `set ID`, `unset`: Set or clear the default tunnel.
+
+Ports (`devtunnel port ...`):
+- `port create ID -p N`: `--protocol`, `-d`, `-l`, the headers, `--request-timeout`. A port that exists gives an error.
+- `port update ID -p N`: `-d`, `--add-labels`, `--remove-labels`, the headers, `--request-timeout`.
+- `port list ID`, `port show ID`, `port delete ID -p N`.
+
+Access control (`devtunnel access ...`):
+- `access create ID`: The audience is `-a` anonymous, `--tenant` the current Entra tenant, `--org NAME` a GitHub organization, or `-r owner/repo` the users of a repository. `-p N` applies the rule to one port. `-d` makes a deny rule. `-e 1h` to `30d` sets an expiration. `--scopes` sets the scopes (the default is `connect`). `-i INDEX` puts the rule at a position, because the rules have an order.
+- `access list ID`: Show the rules.
+- `access delete ID -i INDEX`: Delete the rule at this position.
+- `access reset ID`: Go back to the default (only the owner).
+
+Tokens:
+- `token ID --scope SCOPES`: Make a tunnel token with one or more scopes: `create`, `manage`, `manage:ports`, `host`, `inspect`, `connect`. Use the token with `-t` on a different computer, or with the `X-Tunnel-Authorization` header.
+
+Connect:
+- `connect ID`: Make local ports for the ports of the tunnel. If a local port is in use, `connect` uses the next free port. Read the port from the output, for example `Forwarding from 127.0.0.1:18100 to host port 18099`. `connect` does not stop. Run it in the background.
 
 Diagnostics:
-- `echo <protocol>` — local echo server for testing; protocol `http` (default), `https`, `ssh`, `tcp`, `udp`. `-p` port, `-I` interface (default `127.0.0.1`), `-c/--certificate` + `-pwd` for TLS.
-- `ping <uri>` — send probes to a remote echo server. `-s` message size, `-i` interval ms (default 1000).
-- `limits` — account quotas (tunnel count, ports per tunnel, etc.). `clusters` — service regions with current marked `*`.
+- `echo [http|https|ssh|tcp|udp]`: Start a local echo server for tests. `-p` port, `-I` interface (default `127.0.0.1`), `-c` and `-pwd` for TLS.
+- `ping URI`: Send messages to a remote echo server. `-s` size, `-i` interval in ms (default 1000).
+- `limits`: The limits of the account, for example the bandwidth.
+- `clusters`: The service regions. `*` shows the current cluster.
 
 # Read it locally
 
 ```sh
-devtunnel --help                  # top-level command list
-devtunnel host --help             # the flag you'll reach for most
-devtunnel access create --help    # the audience/deny/scope matrix
-devtunnel token --help            # scope names for handoff tokens
-devtunnel user show               # am I logged in / as whom
-devtunnel clusters                # regions; * = the cluster you're bound to
-devtunnel limits                  # quotas before you hit them
+devtunnel --help                  # all commands
+devtunnel host --help             # flags of one command
+devtunnel access create --help    # audiences, deny rules and scopes
+devtunnel token --help            # scope names
+devtunnel limits                  # limits of the account
 ```
 
-Online docs (not curl-friendly as raw text; open in a browser):
-
-```
-https://aka.ms/devtunnels/docs           # overview + concepts
-https://aka.ms/devtunnels/docs/cli       # full CLI reference
-https://aka.ms/devtunnels/issues         # bug tracker
-```
+The online documentation is at https://aka.ms/devtunnels/docs (CLI reference: https://aka.ms/devtunnels/docs/cli).
 
 # Long-running calls
 
-`devtunnel host` is a foreground daemon — it blocks, streaming connection logs, and runs until `Ctrl-C`. The tunnel **object** outlives the process; only the live forwarding stops.
-
-- **Fire-and-forget.** `Bash` with `run_in_background: true`, redirect both streams (`devtunnel host my-api > /tmp/devtunnel.log 2>&1`). Grep the log for the `https://…devtunnels.ms` connect URL once it's up. Use a named/created tunnel so the URL is stable and you can `delete` it deterministically on teardown.
-- **Headless hosts (CI, servers).** Avoid the interactive browser login: either `devtunnel user login -d` (device-code) once, or mint a `host`-scoped token with `devtunnel token <id> --scope host` and run `devtunnel host <id> -t <token>` — no cached user session needed.
-- **Reconnects.** The host process auto-reconnects to the service across transient network drops; the public URL is unchanged across reconnects because it's tied to the tunnel object, not the session.
-- **Cleanup.** Killing the host frees nothing server-side. Set `-e` on create for auto-expiry, or explicitly `devtunnel delete <id>` (or `delete-all`) when done — tunnels count against `devtunnel limits`.
+- Host: `devtunnel-up.sh` starts `devtunnel host` with `nohup`. The host continues after the Bash call. Its log is `DIR/host.log`.
+- Reconnect: After a network problem, the host connects again. The URL does not change, because the URL belongs to the tunnel.
+- Cleanup: When you stop the host, the tunnel stays on the service. A tunnel without `--name` expires after 1 day. To delete a tunnel immediately, use `devtunnel-down.sh --delete DIR` or `devtunnel delete ID -f`.
+- Headless computer: Use `devtunnel user login -d` (device code) one time. Or make a token with `devtunnel token ID --scope host`, and run `devtunnel host ID -t -` with the token on stdin.

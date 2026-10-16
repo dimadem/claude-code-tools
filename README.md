@@ -37,7 +37,7 @@ For using these skills install: `brew install nmap` (nmap-cli), `brew install --
 | Skill | Description |
 |-------|-------------|
 | `nmap-cli` | Discover hosts, scan ports, detect services/OS, run NSE scripts; scripts for long scans and short XML summaries |
-| `devtunnel-cli` | Expose a local port on a public/private URL with Microsoft Dev Tunnels |
+| `devtunnel-cli` | Expose a local port on a public/private URL with Microsoft Dev Tunnels; scripts to start and stop a host |
 
 ## Install
 
