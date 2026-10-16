@@ -11,6 +11,8 @@ For using these skills install: `brew install --cask codex` (codex-cli), Antigra
 | `codex-cli` | Run Codex CLI non-interactively to delegate coding, review, or analysis tasks |
 | `agy-cli` | Run Antigravity CLI non-interactively to delegate coding, review, or analysis tasks |
 
+Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`), both skills run the delegated agent in a pane next to yours: a one-shot run that writes its result to a file (`scripts/herdr-run.sh`), or an interactive agent you can watch and approve. `agy-cli/command-rules.json` holds allow rules for usual inspection commands; the skill installs them into `~/.gemini/antigravity-cli/settings.json` only after you agree.
+
 ### media
 
 For using these skills install: `brew install ffmpeg` (ffmpeg-cli), `brew install yt-dlp` (yt-dlp-cli)
