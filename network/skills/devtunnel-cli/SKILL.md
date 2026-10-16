@@ -26,12 +26,13 @@ login → tunnel (create or host) → ports → access control entries → host 
 
 # Procedure
 
-1. Run `devtunnel user show`. If it shows `Login token expired.` or `Login required.`, tell the user to type `! devtunnel user login -g` (GitHub) or `! devtunnel user login` (Microsoft).
+1. Find who opens the URL. A private URL opens only in a browser with the login of the user. A webhook service, a different person or a device without this login gets HTTP 302. For these clients, the tunnel must be anonymous. Get approval from the user, then add `--anon`.
 2. To share a port one time, run `devtunnel-up.sh PORT`. The tunnel expires after 1 day.
-3. If the user must have the same URL each time, run `devtunnel-up.sh --name ID PORT`.
-4. Give the `url=` lines to the user.
-5. To test a private URL, use a connect token (see "Test a private URL").
-6. When the user does not need the tunnel, run `devtunnel-down.sh DIR`. Add `--delete` for a tunnel without `--name`.
+3. If the user must have the same URL each time, run `devtunnel-up.sh --name ID PORT`. The tunnel expires after 30 days.
+4. If there is no login, the commands show `Login token expired.` or `Login required.`, and `devtunnel-up.sh` stops with exit code 3. Then tell the user to type `! devtunnel user login -g` (GitHub) or `! devtunnel user login` (Microsoft).
+5. Give the `url=` lines to the user.
+6. To test a private URL, use a connect token (see "Test a private URL").
+7. When the user does not need the tunnel, run `devtunnel-down.sh DIR`. Add `--delete` for a tunnel without `--name`.
 
 # Scripts
 
@@ -42,7 +43,7 @@ login → tunnel (create or host) → ports → access control entries → host 
 Flags of `devtunnel-up.sh`:
 - `--name ID`: Use a persistent tunnel. If the tunnel or a port does not exist, the script makes it. The URL does not change.
 - `--anon`: Make a new tunnel anonymous. For a tunnel that exists, use `devtunnel access create ID -a`.
-- `--expire TIME`: The expiration of a new tunnel, for example `2h` or `7d`. The default is `1d`.
+- `--expire TIME`: The expiration of a new tunnel, from `1h` to `30d`. The default is `1d`, and `30d` with `--name`.
 - `--dir DIR`: The directory for `host.log`, `pid` and `tunnel`. The default is a new temporary directory. If the host of a directory did not stop, the script gives an error.
 - `--timeout SEC`: The maximum time to wait for the host. The default is 30.
 
@@ -83,11 +84,11 @@ Login (`devtunnel user ...`):
 - `-t, --access-token TOKEN`: Use a tunnel token in place of the login. `-` reads the token from stdin. Most commands have this flag.
 
 Tunnels:
-- `create [ID]`: `-a` anonymous, `-r owner/repo` access for the users of a repository, `-e 2h|7d` expiration. Other flags: `-d` description, `-l` labels (with spaces between them), `--request-timeout SEC` (`0` gives no limit), `--host-header`, `--origin-header`. Without `ID`, the ID is random.
+- `create [ID]`: `-a` anonymous, `-r owner/repo` access for the users of a repository, `-e` expiration from `1h` to `30d` (default `30d`). Other flags: `-d` description, `-l` labels (with spaces between them), `--request-timeout SEC` (`0` gives no limit), `--host-header`, `--origin-header`. Without `ID`, the ID is random.
 - `host [ID]`: `-p PORT` (one or more times), `--protocol http|https|auto`, `-a`, `-e`, `-d`, `-l`, `-r`, `--host-header`, `--origin-header`. Without `ID`, `host` makes a new tunnel. With the ID of a tunnel that exists, `-p` gives an error. Add the ports with `port create`.
 - `update [ID]`: Change `-d`, `-e`, the headers, `--request-timeout`, `--add-labels` and `--remove-labels`.
 - `list`: `-l` labels (one or more), `--all-labels` (all), `--limit N`, `-j`.
-- `show [ID]`, `delete [ID]`, `delete-all`: `-f` deletes without a question.
+- `show [ID]`, `delete [ID]`, `delete-all`: `-f` forces the deletion.
 - `set ID`, `unset`: Set or clear the default tunnel.
 
 Ports (`devtunnel port ...`):
@@ -129,5 +130,5 @@ The online documentation is at https://aka.ms/devtunnels/docs (CLI reference: ht
 
 - Host: `devtunnel-up.sh` starts `devtunnel host` with `nohup`. The host continues after the Bash call. Its log is `DIR/host.log`.
 - Reconnect: After a network problem, the host connects again. The URL does not change, because the URL belongs to the tunnel.
-- Cleanup: When you stop the host, the tunnel stays on the service. A tunnel without `--name` expires after 1 day. To delete a tunnel immediately, use `devtunnel-down.sh --delete DIR` or `devtunnel delete ID -f`.
+- Cleanup: When you stop the host, the tunnel stays on the service. A tunnel from `devtunnel-up.sh` without `--name` expires after 1 day. To delete a tunnel immediately, use `devtunnel-down.sh --delete DIR` or `devtunnel delete ID -f`.
 - Headless computer: Use `devtunnel user login -d` (device code) one time. Or make a token with `devtunnel token ID --scope host`, and run `devtunnel host ID -t -` with the token on stdin.

@@ -5,7 +5,7 @@
 #   PORT...        local ports; for --name, ports to add to the tunnel if missing
 #   --name ID      persistent tunnel: create it and its ports if missing (same URL each run)
 #   --anon         allow anonymous access (anyone with the URL) on a new tunnel
-#   --expire TIME  expiration of a new tunnel: 2h, 7d (default 1d)
+#   --expire TIME  expiration of a new tunnel, 1h to 30d (default: 1d, with --name 30d)
 #   --dir DIR      run directory (default: new mktemp -d); gets host.log, pid, tunnel
 #   --timeout SEC  max wait for the host (default 30)
 #
@@ -20,7 +20,7 @@ usage() {
 
 name=""
 anon=()
-expire=1d
+expire=""
 dir=""
 timeout=30
 while [ $# -gt 0 ]; do
@@ -40,6 +40,10 @@ for p in "$@"; do
 done
 case "$timeout" in ''|*[!0-9]*) usage ;; esac
 [ -n "$name" ] || [ $# -gt 0 ] || { echo "error: give a PORT or --name ID" >&2; exit 2; }
+# A named tunnel keeps its URL, so it gets the maximum expiration.
+if [ -z "$expire" ]; then
+  if [ -n "$name" ]; then expire=30d; else expire=1d; fi
+fi
 
 # JSON from devtunnel; the CLI can print text lines before the JSON.
 dj() { devtunnel "$@" -j 2>/dev/null | sed -n '/^[{[]/,$p'; }
