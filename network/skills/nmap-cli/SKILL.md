@@ -1,6 +1,6 @@
 ---
 name: nmap-cli
-description: Run nmap from the shell to find hosts, scan ports, identify services and operating systems, and run NSE scripts. Use when the user tells you to run "nmap".
+description: Run nmap from the shell to find hosts, scan ports, identify services and operating systems, and run NSE scripts. Use when the user tells you to run "nmap". Also use it when the user tells you to find open ports, the devices on a network, the service versions or the TLS ciphers of a host, and does not write "nmap".
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/nmap-summary.sh *)
 ---
 
@@ -27,23 +27,36 @@ targets → host discovery → port scan → service/OS detection → NSE → ou
 - Host discovery: Without root, `-sn` sends TCP connect probes to ports 80 and 443. With root on a local Ethernet network, nmap uses ARP, also with `-Pn`. To stop ARP, use `--disable-arp-ping`.
 - Output: `-oA <basename>` writes the normal, XML and grepable output in one scan. `-oX -` writes XML to stdout. Use XML as input for a script.
 
+# Procedure
+
+1. Make sure that the user has permission to scan the targets. For a target that is not on the local network, get approval from the user.
+2. Find the hosts that are up with `-sn`, or scan a small port list with `--top-ports 100`.
+3. Run `-sV` only on the open ports from step 2.
+4. Read the result with `nmap-summary.sh`. The normal output is long and uses many tokens.
+5. If a scan can run for more than 2 minutes, use `nmap-run.sh` with `run_in_background: true`. For example, use it for `-p-`, `-sV` on a `/24` network, `-A` or `--script=vuln`.
+6. If the scan must have root, tell the user to type `! sudo -v`. Then use `sudo -n nmap` or `nmap-run.sh --sudo`. You cannot type a sudo password.
+
 # Minimal command
 
 ```sh
-nmap target                                      # default: top 1000 TCP, T3
-sudo nmap -sS -sV -O target                      # SYN + service version + OS (root)
-sudo nmap -sn 192.168.1.0/24                     # LAN host discovery (ARP with root)
-sudo nmap -A -p- -oA scan_results target         # full audit, all ports, three output files
-nmap -n -p 22,443 -oX - target | ${CLAUDE_PLUGIN_ROOT}/scripts/nmap-summary.sh -
+nmap -n --top-ports 100 -oX - target | ${CLAUDE_PLUGIN_ROOT}/scripts/nmap-summary.sh -        # quick look, no root
+nmap -n -sV -p 22,80,443 -oX - target | ${CLAUDE_PLUGIN_ROOT}/scripts/nmap-summary.sh -       # versions on known ports
+sudo -n nmap -n -sn -oX - 192.168.1.0/24 | ${CLAUDE_PLUGIN_ROOT}/scripts/nmap-summary.sh -    # LAN hosts with ARP (after ! sudo -v)
+${CLAUDE_PLUGIN_ROOT}/scripts/nmap-run.sh --sudo -- -sS -sV -O -p- target                   # full audit in the background
 ```
 
 # Scripts
 
-- `${CLAUDE_PLUGIN_ROOT}/scripts/nmap-summary.sh FILE.xml`: Show a short summary of the XML output. The summary has one line for each port, the OS and the NSE output. Use `-` for stdin. Use it in place of the normal output.
+`${CLAUDE_PLUGIN_ROOT}/scripts/nmap-summary.sh FILE.xml`: Show a short summary of the XML output. The summary has one line for each port, the OS and the NSE output. Use `-` for stdin. Use it in place of the normal output.
+
+Flags of `nmap-summary.sh`:
 - `--all`: Show also the ports with the state `closed` or `filtered`.
 - `--lines N`: Show a maximum of N lines for each NSE script. The default is 5. `0` gives no NSE output.
 - `--json`: Show the same data as JSON. Use it with `jq` to filter many hosts. To show a table in `nu`, pipe the JSON to `nu --stdin -c 'from json | get hosts | each {|h| $h.ports | insert addr $h.addr} | flatten | select addr port proto state service version'`.
-- `${CLAUDE_PLUGIN_ROOT}/scripts/nmap-run.sh -- NMAP_ARGS`: Run a long scan. The script adds `--noninteractive`, `--stats-every 30s` and `-oA DIR/scan`. At the end, it shows the summary and `rc=`.
+
+`${CLAUDE_PLUGIN_ROOT}/scripts/nmap-run.sh -- NMAP_ARGS`: Run a long scan. The script adds `--noninteractive`, `--stats-every 30s` and `-oA DIR/scan`. At the end, it shows the summary and `rc=`.
+
+Flags of `nmap-run.sh`:
 - `--sudo`: Run nmap with `sudo -n`. If sudo must have a password, the script stops. Then tell the user to type `! sudo -v`.
 - `--dir DIR`, `--stats TIME`: Set the directory and the time between status lines. Do not add `-o` flags to `NMAP_ARGS`.
 
@@ -128,7 +141,7 @@ man nmap                                     # full manual (≈3000 lines)
 nmap --script-help "vuln"                    # scripts in a category
 nmap --script-help ssl-enum-ciphers          # what one script does
 nmap --iflist                                # interfaces and routes nmap will use
-ls /opt/homebrew/share/nmap/scripts/*.nse | wc -l   # NSE scripts available locally
+nmap --script-help all | grep -c '^Categories'   # NSE scripts available locally
 ```
 
 # Long scans

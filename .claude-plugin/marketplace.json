@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "network",
-      "description": "network scanning and analysis",
+      "description": "network scanning, analysis, and tunneling",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/dimadem/claude-code-tools.git",

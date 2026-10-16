@@ -32,11 +32,12 @@ For using these skills install: `brew install ffmpeg` (ffmpeg-cli), `brew instal
 
 ### network
 
-For using these skills install: `brew install nmap` (nmap-cli)
+For using these skills install: `brew install nmap` (nmap-cli), `brew install --cask devtunnel` (devtunnel-cli)
 
 | Skill | Description |
 |-------|-------------|
-| `nmap-cli` | Discover hosts, scan ports, detect services/OS, run NSE scripts |
+| `nmap-cli` | Discover hosts, scan ports, detect services/OS, run NSE scripts; scripts for long scans and short XML summaries |
+| `devtunnel-cli` | Expose a local port on a public/private URL with Microsoft Dev Tunnels |
 
 ## Install
 
