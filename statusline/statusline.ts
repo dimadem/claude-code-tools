@@ -45,10 +45,17 @@ interface StatuslineInput {
   exceeds_200k_tokens: boolean;
   fast_mode: boolean;
   thinking: { enabled: boolean };
-  // Claude.ai Pro/Max only, absent for API-key auth
+  // Absent until the first API response; timestamps in epoch seconds
+  prompt_cache?: {
+    warm: boolean;
+    ttl: "5m" | "1h";
+    expires_at: number | null;
+    hit_ratio: number | null;
+  };
+  // Claude.ai Pro/Max only, absent for API-key auth; each window can be absent
   rate_limits?: {
-    five_hour: RateLimitWindow;
-    seven_day: RateLimitWindow;
+    five_hour?: RateLimitWindow;
+    seven_day?: RateLimitWindow;
   };
   vim?: { mode: "NORMAL" | "INSERT" | "VISUAL" | "VISUAL LINE" };
   agent?: { name: string };
@@ -66,11 +73,17 @@ interface StatuslineInput {
   };
 }
 
-async function readStdinJson<T>(): Promise<T> {
-  return (await Bun.stdin.json()) as T;
+// Claude Code blanks the status line when the script fails, so bad input
+// must still give a line.
+async function readStdinJson<T>(): Promise<T | null> {
+  try {
+    return (await Bun.stdin.json()) as T;
+  } catch {
+    return null;
+  }
 }
 
-const data = await readStdinJson<StatuslineInput>();
+const data = (await readStdinJson<StatuslineInput>()) ?? ({} as StatuslineInput);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -86,31 +99,14 @@ function gradientColor(pct: number): string {
   return ansi(r, g, 0);
 }
 
+const clampPct = (pct: number): number => Math.min(100, Math.max(0, pct));
+
 function formatTokens(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  const k = Math.round(n / 1000);
+  if (k >= 1000) return `${+(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1000) return `${k}k`;
   return String(n);
 }
-
-// ── Parse ─────────────────────────────────────────────────────────────────────
-
-const modelName = data.model?.display_name ?? "?";
-const effortLevel = data.effort?.level;
-const modelLabel = effortLevel
-  ? `${modelName} ${DIM}[${effortLevel}]${RESET}`
-  : `${modelName}${RESET}`;
-
-const ctxPct = Math.floor(data.context_window?.used_percentage ?? 0);
-
-const usage = data.context_window?.current_usage;
-const ctxTokens =
-  (usage?.input_tokens ?? 0) +
-  (usage?.cache_creation_input_tokens ?? 0) +
-  (usage?.cache_read_input_tokens ?? 0);
-
-const rl5 = Math.round(data.rate_limits?.five_hour.used_percentage ?? 0);
-const rl7 = Math.round(data.rate_limits?.seven_day.used_percentage ?? 0);
-const reset5 = data.rate_limits?.five_hour.resets_at;
-const reset7 = data.rate_limits?.seven_day.resets_at;
 
 function formatResetTime(secondsUntil: number): string {
   if (secondsUntil < 60) return "<1m";
@@ -122,47 +118,138 @@ function formatResetTime(secondsUntil: number): string {
   return `${hours}h ${minutes}m`;
 }
 
+// ── Parse ─────────────────────────────────────────────────────────────────────
+
+const modelName = data.model?.display_name ?? "?";
+const effortLevel = data.effort?.level;
+
+const ctxPct = clampPct(Math.floor(data.context_window?.used_percentage ?? 0));
+
+const usage = data.context_window?.current_usage;
+const ctxTokens =
+  (usage?.input_tokens ?? 0) +
+  (usage?.cache_creation_input_tokens ?? 0) +
+  (usage?.cache_read_input_tokens ?? 0);
+
+const now = Math.floor(Date.now() / 1000);
+const FIVE_HOURS = 5 * 3600;
+const SEVEN_DAYS = 7 * 86400;
+
+// ── Segments ──────────────────────────────────────────────────────────────────
+
+interface Layout {
+  barWidth: number; // 0 = no bar
+  showReset: boolean;
+  show7d: boolean;
+  showEffort: boolean;
+  showCache: boolean;
+}
+
+function modelBlock(layout: Layout): string {
+  return effortLevel && layout.showEffort
+    ? `${TERRACOTTA}${modelName} ${DIM}[${effortLevel}]${RESET}`
+    : `${TERRACOTTA}${modelName}${RESET}`;
+}
+
+function ctxBlock(layout: Layout): string {
+  const filled = Math.floor((ctxPct * layout.barWidth) / 100);
+  let bar = "";
+  for (let i = 0; i < filled; i++) {
+    const pos = (i * 100) / (layout.barWidth - 1);
+    bar += gradientColor(pos) + "█";
+  }
+  bar += RESET;
+  bar += "░".repeat(layout.barWidth - filled);
+
+  const tokenColor = usage == null ? DIM : gradientColor(ctxPct);
+  const tokens = `${tokenColor}${formatTokens(ctxTokens)}${RESET}`;
+  return layout.barWidth > 0 ? `${bar} ${tokens}` : tokens;
+}
+
+// Over pace: more of the limit is used than of the window has passed, so at
+// this rate the limit runs out before the reset. Below 10% it is only noise.
+function overPace(pct: number, secondsLeft: number, windowSeconds: number): boolean {
+  const elapsedPct = (1 - secondsLeft / windowSeconds) * 100;
+  return pct >= 10 && pct > elapsedPct;
+}
+
 function formatWindow(
   label: string,
-  pct: number,
-  resetsAt: number | undefined,
+  win: RateLimitWindow | undefined,
+  windowSeconds: number,
   emptyPlaceholder: string,
+  layout: Layout,
 ): string {
-  if (resetsAt == null) {
-    return `${DIM}${label} ${pct}% ⋯ ${emptyPlaceholder}${RESET}`;
+  const pct = clampPct(Math.round(win?.used_percentage ?? 0));
+  if (win?.resets_at == null) {
+    const reset = layout.showReset ? ` ⋯ ${emptyPlaceholder}` : "";
+    return `${DIM}${label} ${pct}%${reset}${RESET}`;
   }
-  const delta = Math.max(0, resetsAt - Math.floor(Date.now() / 1000));
-  return `${label} ${gradientColor(pct)}${pct}%${RESET} ${DIM}⋯ ${formatResetTime(delta)}${RESET}`;
+  const delta = Math.max(0, win.resets_at - now);
+  const fast = overPace(pct, delta, windowSeconds);
+  const arrow = `${gradientColor(100)}▲${RESET}`;
+  const head = `${label} ${gradientColor(pct)}${pct}%${RESET}`;
+  if (!layout.showReset) return fast ? `${head} ${arrow}` : head;
+  const mark = fast ? arrow : `${DIM}⋯${RESET}`;
+  return `${head} ${mark} ${DIM}${formatResetTime(delta)}${RESET}`;
 }
 
-// ── Context bar ───────────────────────────────────────────────────────────────
-
-const BAR_WIDTH = 20;
-const filled = Math.floor((ctxPct * BAR_WIDTH) / 100);
-
-let bar = "";
-for (let i = 0; i < filled; i++) {
-  const pos = (i * 100) / (BAR_WIDTH - 1);
-  bar += gradientColor(pos) + "█";
+// Time until the cached prompt goes cold. The next request after that
+// writes the full context to the cache again.
+function cacheBlock(): string {
+  const cache = data.prompt_cache;
+  if (cache == null) return `${DIM}cache —m${RESET}`;
+  const left = cache.expires_at == null ? 0 : cache.expires_at - now;
+  if (!cache.warm || left <= 0) return `${DIM}cache cold${RESET}`;
+  const ttl = cache.ttl === "1h" ? 3600 : 300;
+  const usedPct = clampPct(100 - (left / ttl) * 100);
+  const time = left < 60 ? "<1m" : `${Math.floor(left / 60)}m`;
+  return `cache ${gradientColor(usedPct)}${time}${RESET}`;
 }
-bar += RESET;
-bar += "░".repeat(BAR_WIDTH - filled);
 
-let tokenColor: string;
-if (usage == null) {
-  tokenColor = DIM;
-} else {
-  tokenColor = gradientColor(ctxPct);
+function render(layout: Layout): string {
+  const parts = [modelBlock(layout), ctxBlock(layout)];
+  if (layout.showCache) parts.push(cacheBlock());
+  parts.push(formatWindow("5h", data.rate_limits?.five_hour, FIVE_HOURS, "—h —m", layout));
+  if (layout.show7d) {
+    parts.push(formatWindow("7d", data.rate_limits?.seven_day, SEVEN_DAYS, "—d —h", layout));
+  }
+  return parts.join(" | ");
 }
-const tokenLabel = ` ${tokenColor}${formatTokens(ctxTokens)}${RESET}`;
-const ctxBlock = ` | ${bar}${tokenLabel}`;
 
-// ── Rate limits ───────────────────────────────────────────────────────────────
+// ── Width ─────────────────────────────────────────────────────────────────────
 
-const rate = `${formatWindow("5h", rl5, reset5, "—h —m")} | ${formatWindow("7d", rl7, reset7, "—d —h")}`;
+// From full to short. The first layout that fits the terminal is used.
+const LAYOUTS: Layout[] = [
+  { barWidth: 20, showReset: true, show7d: true, showEffort: true, showCache: true },
+  { barWidth: 10, showReset: true, show7d: true, showEffort: true, showCache: true },
+  { barWidth: 10, showReset: false, show7d: true, showEffort: true, showCache: true },
+  { barWidth: 0, showReset: false, show7d: true, showEffort: true, showCache: true },
+  { barWidth: 0, showReset: false, show7d: false, showEffort: true, showCache: true },
+  { barWidth: 0, showReset: false, show7d: false, showEffort: true, showCache: false },
+  { barWidth: 0, showReset: false, show7d: false, showEffort: false, showCache: false },
+];
+
+// Claude Code sets COLUMNS for the script; room is left for the row indent.
+const MARGIN = 2;
+const columns = Number(process.env.COLUMNS) || Infinity;
+
+function fit(): string {
+  for (const layout of LAYOUTS) {
+    const line = render(layout);
+    if (Bun.stringWidth(line) <= columns - MARGIN) return line;
+  }
+  return render(LAYOUTS[LAYOUTS.length - 1]);
+}
 
 // ── Output ────────────────────────────────────────────────────────────────────
 
-await Bun.write(Bun.stdout, `${TERRACOTTA}${modelLabel}${ctxBlock} | ${rate}`);
+let out: string;
+try {
+  out = fit();
+} catch {
+  out = `${TERRACOTTA}${modelName}${RESET}`;
+}
+await Bun.write(Bun.stdout, out);
 
 export {};
