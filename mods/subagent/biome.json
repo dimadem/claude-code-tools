@@ -1,0 +1,11 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "files": {
+    "include": ["hooks/**", "tests/**", "types/**"],
+    "ignore": [".claude-plugin/**", "node_modules/**"]
+  },
+  "formatter": { "indentStyle": "space", "lineWidth": 110 },
+  "javascript": {
+    "formatter": { "quoteStyle": "single", "semicolons": "asNeeded", "arrowParentheses": "asNeeded" }
+  }
+}

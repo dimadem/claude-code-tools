@@ -1,0 +1,38 @@
+{
+  "name": "subagent",
+  "displayName": "Agents pane",
+  "version": "0.1.0",
+  "description": "Delegate read-only review and analysis to Codex, Antigravity (agy) or pi in the background, with a live pane beside the chat",
+  "author": {
+    "name": "Dima Dem"
+  },
+  "repository": "https://github.com/dimadem/claude-code-tools.git",
+  "homepage": "https://github.com/dimadem/claude-code-tools/tree/main/mods/subagent",
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "background": {
+      "type": "string",
+      "title": "Pane background",
+      "description": "The background shade of the Agents pane: terminal (no fill), black, graphite, slate or navy.",
+      "options": [
+        "terminal",
+        "black",
+        "graphite",
+        "slate",
+        "navy"
+      ],
+      "default": "terminal"
+    }
+  },
+  "keywords": [
+    "codex",
+    "agy",
+    "antigravity",
+    "pi",
+    "subagent",
+    "review",
+    "pane",
+    "mod"
+  ]
+}

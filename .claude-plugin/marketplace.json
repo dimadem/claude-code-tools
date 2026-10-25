@@ -41,6 +41,15 @@
         "url": "https://github.com/dimadem/claude-code-tools.git",
         "path": "writing"
       }
+    },
+    {
+      "name": "subagent",
+      "description": "mod: delegate read-only review and analysis to Codex, agy or pi, with a live pane beside the chat",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/dimadem/claude-code-tools.git",
+        "path": "mods/subagent"
+      }
     }
   ]
 }

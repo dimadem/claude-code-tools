@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "scripts": {
+    "check": "biome check && tsc -p . && knip && bun run deps && claude plugin test . && claude plugin validate .",
+    "deps": "depcruise hooks tests --config .dependency-cruiser.cjs",
+    "fix": "biome check --write"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "dependency-cruiser": "18.7.0",
+    "knip": "6.43.0",
+    "typescript": "5.6.3"
+  }
+}

@@ -39,6 +39,18 @@ For using these skills install: `brew install nmap` (nmap-cli), `brew install --
 | `nmap-cli` | Discover hosts, scan ports, detect services/OS, run NSE scripts; scripts for long scans and short XML summaries |
 | `devtunnel-cli` | Expose a local port on a public/private URL with Microsoft Dev Tunnels; scripts to start and stop a host |
 
+## Mods
+
+A mod is a plugin with code that runs inside Claude Code: it can draw panes and add tools and commands. See [Mods overview](https://code.claude.com/docs/en/plugins/mods/overview.md).
+
+| Mod | Description |
+|-----|-------------|
+| [`subagent`](mods/subagent/README.md) | Delegate read-only review and analysis to Codex, Antigravity (`agy`) or `pi` in the background, with a live pane beside the chat |
+
+```bash
+/plugin install subagent@dimadem-claude-code-tools
+```
+
 ## Install
 
 ### Option A — skills only for every cli agent
