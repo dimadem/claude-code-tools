@@ -22,19 +22,36 @@ lines=5
 json=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --all) all=1; shift ;;
-    --json) json=1; shift ;;
-    --lines) [ $# -ge 2 ] || usage; lines=$2; shift 2 ;;
-    --) shift; break ;;
+    --all)
+      all=1
+      shift
+      ;;
+    --json)
+      json=1
+      shift
+      ;;
+    --lines)
+      [ $# -ge 2 ] || usage
+      lines=$2
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
     -?*) usage ;;
     *) break ;;
   esac
 done
 [ $# -eq 1 ] || usage
-case "$lines" in ''|*[!0-9]*) usage ;; esac
-[ "$1" = - ] || [ -r "$1" ] || { echo "error: cannot read $1" >&2; exit 2; }
+case "$lines" in '' | *[!0-9]*) usage ;; esac
+[ "$1" = - ] || [ -r "$1" ] || {
+  echo "error: cannot read $1" >&2
+  exit 2
+}
 
-prog=$(cat <<'EOF'
+prog=$(
+  cat <<'EOF'
 import json, re, sys
 import xml.etree.ElementTree as ET
 

@@ -15,15 +15,24 @@ usage() {
 delete=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --delete) delete=1; shift ;;
-    --) shift; break ;;
+    --delete)
+      delete=1
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
     -*) usage ;;
     *) break ;;
   esac
 done
 [ $# -eq 1 ] || usage
 dir=$1
-[ -d "$dir" ] || { echo "error: no directory $dir" >&2; exit 2; }
+[ -d "$dir" ] || {
+  echo "error: no directory $dir" >&2
+  exit 2
+}
 
 if [ -r "$dir/pid" ]; then
   pid=$(cat "$dir/pid")
@@ -47,7 +56,10 @@ else
 fi
 
 if [ "$delete" = 1 ]; then
-  [ -r "$dir/tunnel" ] || { echo "error: no $dir/tunnel" >&2; exit 2; }
+  [ -r "$dir/tunnel" ] || {
+    echo "error: no $dir/tunnel" >&2
+    exit 2
+  }
   devtunnel delete "$(cat "$dir/tunnel")" -f
   rm -f "$dir/tunnel"
 fi

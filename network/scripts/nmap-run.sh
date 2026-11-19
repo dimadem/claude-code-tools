@@ -25,10 +25,24 @@ sudo=()
 stats=30s
 while [ $# -gt 0 ]; do
   case "$1" in
-    --dir) [ $# -ge 2 ] || usage; dir=$2; shift 2 ;;
-    --sudo) sudo=(sudo -n); shift ;;
-    --stats) [ $# -ge 2 ] || usage; stats=$2; shift 2 ;;
-    --) shift; break ;;
+    --dir)
+      [ $# -ge 2 ] || usage
+      dir=$2
+      shift 2
+      ;;
+    --sudo)
+      sudo=(sudo -n)
+      shift
+      ;;
+    --stats)
+      [ $# -ge 2 ] || usage
+      stats=$2
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
     *) usage ;;
   esac
 done
@@ -36,8 +50,10 @@ done
 for a in "$@"; do
   case "$a" in
     # nmap also accepts long options with one dash and as unique prefixes.
-    -o|-o[NXGSAMH]*|--o[NXGSAMH]*|-app*|--app*|-resu*|--resu*)
-      echo "error: $a is not allowed; the script sets -oA DIR/scan" >&2; exit 2 ;;
+    -o | -o[NXGSAMH]* | --o[NXGSAMH]* | -app* | --app* | -resu* | --resu*)
+      echo "error: $a is not allowed; the script sets -oA DIR/scan" >&2
+      exit 2
+      ;;
   esac
 done
 

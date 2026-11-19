@@ -25,21 +25,50 @@ dir=""
 timeout=30
 while [ $# -gt 0 ]; do
   case "$1" in
-    --name) [ $# -ge 2 ] || usage; name=$2; shift 2 ;;
-    --anon) anon=(-a); shift ;;
-    --expire) [ $# -ge 2 ] || usage; expire=$2; shift 2 ;;
-    --dir) [ $# -ge 2 ] || usage; dir=$2; shift 2 ;;
-    --timeout) [ $# -ge 2 ] || usage; timeout=$2; shift 2 ;;
-    --) shift; break ;;
+    --name)
+      [ $# -ge 2 ] || usage
+      name=$2
+      shift 2
+      ;;
+    --anon)
+      anon=(-a)
+      shift
+      ;;
+    --expire)
+      [ $# -ge 2 ] || usage
+      expire=$2
+      shift 2
+      ;;
+    --dir)
+      [ $# -ge 2 ] || usage
+      dir=$2
+      shift 2
+      ;;
+    --timeout)
+      [ $# -ge 2 ] || usage
+      timeout=$2
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
     -*) usage ;;
     *) break ;;
   esac
 done
 for p in "$@"; do
-  case "$p" in ''|*[!0-9]*) echo "error: port is not a number: $p" >&2; exit 2 ;; esac
+  case "$p" in '' | *[!0-9]*)
+    echo "error: port is not a number: $p" >&2
+    exit 2
+    ;;
+  esac
 done
-case "$timeout" in ''|*[!0-9]*) usage ;; esac
-[ -n "$name" ] || [ $# -gt 0 ] || { echo "error: give a PORT or --name ID" >&2; exit 2; }
+case "$timeout" in '' | *[!0-9]*) usage ;; esac
+[ -n "$name" ] || [ $# -gt 0 ] || {
+  echo "error: give a PORT or --name ID" >&2
+  exit 2
+}
 # A named tunnel keeps its URL, so it gets the maximum expiration.
 if [ -z "$expire" ]; then
   if [ -n "$name" ]; then expire=30d; else expire=1d; fi
@@ -89,7 +118,10 @@ host_args=()
 if [ -n "$name" ]; then
   # host ID -p N fails on a tunnel that exists, so add the ports first.
   if ! devtunnel show "$name" -j >/dev/null 2>&1; then
-    [ $# -gt 0 ] || { echo "error: tunnel $name does not exist; give a PORT to create it" >&2; exit 2; }
+    [ $# -gt 0 ] || {
+      echo "error: tunnel $name does not exist; give a PORT to create it" >&2
+      exit 2
+    }
     devtunnel create "$name" -e "$expire" ${anon[@]+"${anon[@]}"} >/dev/null
     created=$name
   elif [ ${#anon[@]} -gt 0 ]; then

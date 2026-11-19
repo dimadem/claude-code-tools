@@ -25,10 +25,23 @@ wait=1
 pane_only=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --label) [ $# -ge 2 ] || usage; label=$2; shift 2 ;;
-    --no-wait) wait=0; shift ;;
-    --pane-only) pane_only=1; shift ;;
-    --) shift; break ;;
+    --label)
+      [ $# -ge 2 ] || usage
+      label=$2
+      shift 2
+      ;;
+    --no-wait)
+      wait=0
+      shift
+      ;;
+    --pane-only)
+      pane_only=1
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
     -*) usage ;;
     *) break ;;
   esac
@@ -36,7 +49,10 @@ done
 
 in_herdr=0
 if [ "${HERDR_ENV:-}" = 1 ]; then
-  [ -n "${HERDR_PANE_ID:-}" ] || { echo "error: HERDR_ENV is 1, but HERDR_PANE_ID is empty" >&2; exit 3; }
+  [ -n "${HERDR_PANE_ID:-}" ] || {
+    echo "error: HERDR_ENV is 1, but HERDR_PANE_ID is empty" >&2
+    exit 3
+  }
   in_herdr=1
 fi
 
@@ -56,7 +72,10 @@ new_pane() {
 }
 
 if [ "$pane_only" = 1 ]; then
-  [ "$in_herdr" = 1 ] || { echo "error: --pane-only needs Herdr (HERDR_ENV is not 1)" >&2; exit 3; }
+  [ "$in_herdr" = 1 ] || {
+    echo "error: --pane-only needs Herdr (HERDR_ENV is not 1)" >&2
+    exit 3
+  }
   [ $# -eq 0 ] || usage
   pane=$(new_pane)
   herdr pane rename "$pane" "$label" >/dev/null
@@ -67,7 +86,10 @@ fi
 [ $# -eq 1 ] || [ $# -eq 2 ] || usage
 dir=$(CDPATH='' cd -- "$1" && pwd)
 [ $# -eq 2 ] && printf '%s\n' "$2" >"$dir/cmd.sh"
-[ -s "$dir/cmd.sh" ] || { echo "error: no COMMAND and no $dir/cmd.sh" >&2; exit 2; }
+[ -s "$dir/cmd.sh" ] || {
+  echo "error: no COMMAND and no $dir/cmd.sh" >&2
+  exit 2
+}
 rm -f "$dir/rc"
 
 # A random marker per run, so command output does not match it by accident.
@@ -112,7 +134,10 @@ fi
 pane=$(new_pane)
 herdr pane rename "$pane" "$label" >/dev/null
 # printf %q in bash 3.2 can make bad UTF-8 for non-ASCII paths; the C locale avoids it.
-run_line=$(LC_ALL=C; printf 'bash %q' "$dir/run.sh")
+run_line=$(
+  LC_ALL=C
+  printf 'bash %q' "$dir/run.sh"
+)
 herdr pane run "$pane" "$run_line" >/dev/null
 echo "pane=$pane"
 
