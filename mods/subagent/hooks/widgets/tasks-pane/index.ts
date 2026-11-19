@@ -1,1 +1,0 @@
-export { renderPane } from './view'

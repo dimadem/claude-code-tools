@@ -1,9 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "paths": {
-      "claude-code": ["./.claude-plugin/types/claude-code/index.d.ts"],
-      "claude-code/testing": ["./.claude-plugin/types/claude-code/index.d.ts"]
-    }
-  }
-}
