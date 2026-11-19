@@ -27,7 +27,8 @@ In `-p`, `agy` reads files without a dialog. It does not run a shell command tha
 To find the rules in the settings file, run `jq -e '.permissions.allow | index("command(git status)")' ~/.gemini/antigravity-cli/settings.json`. If the result is `null`, the user must give approval before you install the rules. All projects use this file. After the approval, run:
 
 ```sh
-f=~/.gemini/antigravity-cli/settings.json; cp -p "$f" "$f.bak"
+f=~/.gemini/antigravity-cli/settings.json
+cp -p "$f" "$f.bak"
 jq -s '.[0] * {permissions: {allow: (((.[0].permissions.allow // []) + .[1].permissions.allow) | unique)}}' \
   "$f" "${CLAUDE_SKILL_DIR}/command-rules.json" >"$f.tmp" && mv "$f.tmp" "$f"
 ```

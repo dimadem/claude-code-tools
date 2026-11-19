@@ -7,7 +7,7 @@ Binary: `which ffmpeg` — `/opt/homebrew/bin/ffmpeg` (macOS), `/usr/bin/ffmpeg`
 
 # Mental model
 
-```
+```text
 inputs → -map → filters (-vf / -af / -filter_complex) → codecs (-c:v / -c:a) → output
 ```
 
@@ -36,33 +36,37 @@ ffmpeg -hide_banner -nostdin -y -loglevel warning -stats ...
 # Minimal command
 
 ```sh
-ffmpeg -i in.mp4 -map 0 -c copy out.mkv                     # true remux, every stream kept
-ffmpeg -i in.mp4 -c:v libx264 -crf 20 -c:a aac out.mp4      # transcode, cross-platform
+ffmpeg -i in.mp4 -map 0 -c copy out.mkv                # true remux, every stream kept
+ffmpeg -i in.mp4 -c:v libx264 -crf 20 -c:a aac out.mp4 # transcode, cross-platform
 ffprobe -v error -show_entries format=duration,size:stream=codec_type,codec_name,width,height \
-  -of default=noprint_wrappers=1 in.mp4                     # inspect first
+  -of default=noprint_wrappers=1 in.mp4 # inspect first
 ```
 
 # Knobs by group
 
 Codecs & quality:
+
 - `-c:v` / `-c:a` — `copy` to remux. SW: `libx264`, `libx265`, `libsvtav1`, `libvpx-vp9`, `aac`, `libopus`, `libmp3lame`, `flac`, `alac`. HW: `references/platforms.md`.
 - `-crf N` — libx264 ≈18, libx265 ≈23, libsvtav1 ≈30; libvpx-vp9 needs `-crf N -b:v 0`; HW encoders ignore it.
 - `-preset` — SW only: `slow` / `medium` / `fast`; libsvtav1 takes a number.
 - `-b:v` / `-b:a` — bitrate target; the only control on HW encoders without constant-quality mode.
 
 Streams & timing:
+
 - `-map 0` all streams · `-map 0:v:0` first video · `-map -0:s` all except subtitles.
 - `-ss` / `-t` / `-to` — seek / duration / end point.
 - `-vn` / `-an` / `-sn` — drop video / audio / subtitles.
 - `-shortest` — end at the shortest input. `-frames:v N` — stop after N frames.
 
 Filters:
+
 - `-vf` / `-af` single-input chain; `-filter_complex` only for multi-input or multi-output graphs.
 - `scale=-2:720` — height 720, width auto-rounded even.
 - `-pix_fmt yuv420p` — player compatibility (`yuv420p10le` for 10-bit).
 - `-fps_mode vfr|cfr|passthrough` — frame duplication policy (`-vsync` is the deprecated spelling).
 
 Delivery:
+
 - `-tag:v hvc1` — required for HEVC in the Apple ecosystem (default `hev1`).
 - `-movflags +faststart` — moov atom to file start, for web streaming.
 - `-c:s mov_text` (mp4) / `-c:s srt` (mkv) — subtitle codec when muxing text subs.
@@ -76,13 +80,13 @@ Delivery:
 # Read it locally
 
 ```sh
-ffmpeg -h encoder=<name>             # libx264, hevc_nvenc, hevc_videotoolbox
-ffmpeg -h filter=<name>              # scale, concat, palettegen, loudnorm
-ffmpeg -encoders | grep -i <kw>      # what this build has
-ffmpeg -filters  | grep -i <kw>
+ffmpeg -h encoder=NAME        # libx264, hevc_nvenc, hevc_videotoolbox
+ffmpeg -h filter=NAME         # scale, concat, palettegen, loudnorm
+ffmpeg -encoders | grep -i KW # what this build has
+ffmpeg -filters | grep -i KW
 ffmpeg -hwaccels
-ffprobe -show_streams -i file.mp4     # codecs, pix_fmt, duration, track count
-ffprobe -select_streams v -skip_frame nokey -show_entries frame=pts_time -of csv=p=0 file.mp4   # keyframes
+ffprobe -show_streams -i file.mp4                                                             # codecs, pix_fmt, duration, track count
+ffprobe -select_streams v -skip_frame nokey -show_entries frame=pts_time -of csv=p=0 file.mp4 # keyframes
 ```
 
 # Long-running calls

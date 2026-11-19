@@ -131,4 +131,4 @@ Mail versions ignore the keys anyway.
 
 ## Source
 
-https://apple.stackexchange.com/questions/14001/how-to-turn-off-all-animations-on-os-x/142734#142734
+<https://apple.stackexchange.com/questions/14001/how-to-turn-off-all-animations-on-os-x/142734#142734>

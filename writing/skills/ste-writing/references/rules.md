@@ -1,6 +1,6 @@
 # ASD-STE100 rules, short form
 
-This file gives the main rules of ASD-STE100, Issue 9 (January 2025), in short form. The rule numbers are the numbers in the standard. The full text and the dictionary are free. Fill in the form at https://www.asd-ste100.org/STE_downloads.html
+This file gives the main rules of ASD-STE100, Issue 9 (January 2025), in short form. The rule numbers are the numbers in the standard. The full text and the dictionary are free. Fill in the form at <https://www.asd-ste100.org/STE_downloads.html>
 
 ## Words (section 1)
 

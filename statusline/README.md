@@ -1,6 +1,6 @@
 # statusline
 
-```
+```text
 Opus 5.5 [high] | ████████░░░░░░░░░░░░ 85k | cache 47m | 5h 12% ⋯ 3h 20m | 7d 95% ▲ 2d 4h
 ```
 

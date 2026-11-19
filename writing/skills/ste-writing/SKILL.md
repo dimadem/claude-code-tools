@@ -4,7 +4,7 @@ description: Rewrite documentation, procedures, skills and agent instructions in
 allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/ste-lint.py *)
 ---
 
-This skill applies the main rules of ASD-STE100, Issue 9. It does not contain the STE dictionary. The full standard and the dictionary are free. The user can fill in the form at https://www.asd-ste100.org/STE_downloads.html.
+This skill applies the main rules of ASD-STE100, Issue 9. It does not contain the STE dictionary. The full standard and the dictionary are free. The user can fill in the form at <https://www.asd-ste100.org/STE_downloads.html>.
 
 # Rules
 

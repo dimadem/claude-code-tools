@@ -1,0 +1,21 @@
+# MD013: prose is not wrapped. MD025, MD041: a SKILL.md starts with frontmatter and uses `#` for each section.
+# MD028: two safety instructions in sequence are two blockquotes.
+[global]
+disable = ["MD013", "MD025", "MD028", "MD041"]
+
+# Shell code blocks use the same shfmt flags as the scripts (see mise.toml).
+[code-block-tools]
+enabled = true
+
+[code-block-tools.tools.shfmt-repo]
+command = ["shfmt", "-i", "2", "-ci", "-bn"]
+stdin = true
+stdout = true
+
+[code-block-tools.tools.shfmt-repo-diff]
+command = ["shfmt", "-i", "2", "-ci", "-bn", "-d"]
+stdin = true
+stdout = true
+
+[code-block-tools.languages]
+shell = { lint = ["shfmt-repo-diff"], format = ["shfmt-repo"] }

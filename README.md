@@ -19,7 +19,7 @@ Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`), both skills run the delegated
 |-------|-------------|
 | `ste-writing` | Rewrite documentation, procedures, and agent instructions in ASD-STE100 Simplified Technical English (from any language), with a linter |
 
-The skill has the main rules in short form, not the STE dictionary. Request the official standard at https://www.asd-ste100.org/STE_downloads.html.
+The skill has the main rules in short form, not the STE dictionary. Request the official standard at <https://www.asd-ste100.org/STE_downloads.html>.
 
 ### media
 
@@ -53,7 +53,7 @@ For using these skills install: `brew install nmap` (nmap-cli), `brew install --
 npx skills add dimadem/claude-code-tools
 ```
 
-### Option B — Claude Code marketplace 
+### Option B — Claude Code marketplace
 
 **1. Add the marketplace**:
 
