@@ -1,3 +1,6 @@
 .DS_Store
 *.jsonl
 .antigravitycli/
+__pycache__/
+*.pyc
+mise.toml
