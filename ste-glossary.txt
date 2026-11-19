@@ -3,8 +3,10 @@
 agent, model, prompt, session, conversation, turn, CLI, TUI, command, flag, argument, option, shell, script, file, directory, path
 workspace, project, pane, tab, dialog, screen, output, log, rule, permission, approval, sandbox, hook, timeout, notification
 code review, analysis, subagent, plugin, skill, settings file
+# Code analysis nouns
+state machine, state, transition, guard, event, enum, diagram, frontend, backend, database, schema, test, reducer, race condition, layer, lifecycle, wizard, checkout, onboarding, flow
 # Network nouns
 host, target, port, scan, probe, packet, interface, proxy, decoy, firewall, traceroute, timing, operating system
 tunnel, token, cluster, label, login, URL, access control entry, header, traffic
 # Technical verbs
-run, install, update, open, close, delete, save, press, type, enter, load, scan, host, connect
+run, install, update, open, close, delete, save, press, type, enter, load, scan, host, connect, refactor

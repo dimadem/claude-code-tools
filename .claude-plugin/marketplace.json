@@ -43,6 +43,15 @@
       }
     },
     {
+      "name": "code-analysis",
+      "description": "finding implicit state machines and problems in state logic",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/dimadem/claude-code-tools.git",
+        "path": "code-analysis"
+      }
+    },
+    {
       "name": "subagent",
       "description": "mod: delegate read-only review and analysis to Codex, agy or pi, with a live pane beside the chat",
       "source": {

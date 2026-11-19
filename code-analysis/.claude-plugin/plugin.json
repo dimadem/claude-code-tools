@@ -1,0 +1,11 @@
+{
+  "name": "code-analysis",
+  "description": "code analysis — find implicit finite state machines, show them as Mermaid diagrams, find problems in the state logic and rank them by risk",
+  "version": "1.0.0",
+  "author": {
+    "name": "Dima Dem"
+  },
+  "repository": "https://github.com/dimadem/claude-code-tools.git",
+  "license": "MIT",
+  "keywords": ["state-machine", "fsm", "code-analysis", "mermaid", "refactoring"]
+}
