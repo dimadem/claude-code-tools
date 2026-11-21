@@ -4,14 +4,15 @@
 
 ### subagents
 
-For using these skills install: `brew install --cask codex` (codex-cli), Antigravity CLI (agy-cli)
+For using these skills install: `brew install --cask codex` (codex-cli), Antigravity CLI (agy-cli), Pi (pi-cli)
 
 | Skill | Description |
 |-------|-------------|
 | `codex-cli` | Run Codex CLI non-interactively to delegate coding, review, or analysis tasks |
 | `agy-cli` | Run Antigravity CLI non-interactively to delegate coding, review, or analysis tasks |
+| `pi-cli` | Run Pi coding agent CLI non-interactively to delegate coding, review, or analysis tasks |
 
-Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`), both skills run the delegated agent in a pane next to yours: a one-shot run that writes its result to a file (`scripts/herdr-run.sh`), or an interactive agent you can watch and approve. `agy-cli/command-rules.json` holds allow rules for usual inspection commands; the skill installs them into `~/.gemini/antigravity-cli/settings.json` only after you agree.
+Inside the [Herdr](https://herdr.dev) desktop app (`HC_TERMINAL_ID` is set), the skills run the delegated agent in a herdr-core (`hc`) child terminal: a one-shot run that writes its result to a file (`scripts/hc-run.sh`), or an interactive agent you can watch and approve. Herdr lists the child under your terminal and, when your pane has the focus, opens it in a pane next to yours. `agy-cli/command-rules.json` holds allow rules for usual inspection commands; the skill installs them into `~/.gemini/antigravity-cli/settings.json` only after you agree.
 
 ### writing
 
